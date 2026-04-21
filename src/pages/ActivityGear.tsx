@@ -12,6 +12,40 @@ import GearCreationModal from "@/components/GearCreationModal";
 import TeamLazerSets from "@/components/TeamLazerSets";
 import PackingLinks from "@/components/PackingLinks";
 
+const COLOR_ORDER = ["blå", "grøn", "lilla", "orange", "pink", "rød", "sort"];
+
+const HEX_TO_COLOR_IDX: Record<string, number> = {
+  "#0d39e7": 0,
+  "#0ea5e9": 0,
+  "#3b82f6": 0,
+  "#37a022": 1,
+  "#10b981": 1,
+  "#22c55e": 1,
+  "#7c3aed": 2,
+  "#a855f7": 2,
+  "#f56e00": 3,
+  "#fb923c": 3,
+  "#ff6600": 3,
+  "#f609c3": 4,
+  "#ff49a1": 4,
+  "#ec4899": 4,
+  "#f50000": 5,
+  "#ff3b30": 5,
+  "#ef4444": 5,
+  "#000000": 6,
+  "#111827": 6,
+};
+
+function colorRank(item: Gear): number {
+  const combined = `${item.name || ""} ${item.color_code || ""}`.toLowerCase();
+  for (let i = 0; i < COLOR_ORDER.length; i++) {
+    if (combined.includes(COLOR_ORDER[i])) return i;
+  }
+  const hex = (item.color_code || "").toLowerCase().trim();
+  if (HEX_TO_COLOR_IDX[hex] !== undefined) return HEX_TO_COLOR_IDX[hex];
+  return 99;
+}
+
 export default function ActivityGear() {
   const { slug = "" } = useParams();
   const nav = useNavigate();
@@ -19,7 +53,7 @@ export default function ActivityGear() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<"name" | "location">("name");
+  const [sortMode, setSortMode] = useState<"color" | "name" | "location">("color");
 
   useEffect(() => {
     listActivities().then(setActivities);
@@ -51,11 +85,18 @@ export default function ActivityGear() {
     const copy = [...items];
     if (sortMode === "name") {
       copy.sort((a, b) => a.name.localeCompare(b.name));
-    } else {
+    } else if (sortMode === "location") {
       copy.sort((a, b) => {
         const la = (a.location || "").toLowerCase();
         const lb = (b.location || "").toLowerCase();
         if (la !== lb) return la.localeCompare(lb);
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      copy.sort((a, b) => {
+        const ca = colorRank(a);
+        const cb = colorRank(b);
+        if (ca !== cb) return ca - cb;
         return a.name.localeCompare(b.name);
       });
     }
@@ -120,8 +161,11 @@ export default function ActivityGear() {
               <select
                 className="input w-40"
                 value={sortMode}
-                onChange={(e) => setSortMode(e.target.value as "name" | "location")}
+                onChange={(e) =>
+                  setSortMode(e.target.value as "color" | "name" | "location")
+                }
               >
+                <option value="color">Farve</option>
                 <option value="name">Navn A–Å</option>
                 <option value="location">Øst / Vest</option>
               </select>

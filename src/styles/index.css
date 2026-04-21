@@ -391,12 +391,25 @@
   color: #fff;
   font-size: 14px;
   font-family: inherit;
+  color-scheme: dark;
 }
 
 .input:focus {
   outline: none;
   border-color: rgba(255, 102, 0, 0.5);
   background: rgba(255, 255, 255, 0.08);
+}
+
+select.input option,
+select option {
+  background-color: #0d0d0d;
+  color: #fff;
+}
+
+select.input option:checked,
+select option:checked {
+  background-color: #ff6600;
+  color: #fff;
 }
 
 .input-label {

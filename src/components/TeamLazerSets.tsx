@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { ChevronDown, ChevronRight, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import {
   createGear,
   createGeartype,
@@ -41,6 +43,8 @@ export default function TeamLazerSets({
     Record<string, Record<string, Assignment>>
   >({});
   const [ensuredInitial, setEnsuredInitial] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapseInitialized, setCollapseInitialized] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -125,6 +129,14 @@ export default function TeamLazerSets({
     })();
   }, [sets.length]);
 
+  useEffect(() => {
+    if (collapseInitialized || sets.length === 0) return;
+    const init: Record<string, boolean> = {};
+    for (const s of sets) init[s.id] = true;
+    setCollapsed(init);
+    setCollapseInitialized(true);
+  }, [sets, collapseInitialized]);
+
   const nextSetIndex = useMemo(() => {
     const nums = sets
       .map((s) => {
@@ -159,8 +171,23 @@ export default function TeamLazerSets({
   const rolesForSet = (setId: string) => {
     if (activityId === "A1") {
       return Object.keys(assignments[setId] || {}).filter(
-        (r) => !["display", "kaster", "gevær"].includes(r),
+        (r) => !["display", "kaster"].includes(r) && !r.startsWith("gevær"),
       );
+    }
+    if (activityId === "A2") {
+      const base = [
+        "display",
+        "kaster",
+        "gevær 1",
+        "gevær 2",
+        "gevær 3",
+        "gevær 4",
+        "gevær 5",
+      ];
+      const extra = Object.keys(assignments[setId] || {}).filter(
+        (r) => !base.includes(r) && r !== "gevær",
+      );
+      return [...base, ...extra];
     }
     const base = ["display", "kaster", "gevær"];
     const extra = Object.keys(assignments[setId] || {}).filter((r) => !base.includes(r));
@@ -190,13 +217,14 @@ export default function TeamLazerSets({
   };
 
   const gearForRole = (role: string): Gear[] => {
-    const r = role.toLowerCase();
+    // Strip trailing slot number ("gevær 3" -> "gevær") before matching geartype
+    const baseRole = role.toLowerCase().replace(/\s+\d+$/, "").trim();
     return gear.filter((g) => {
       if (sets.some((s) => s.id === g.id)) return false;
       const type = (g.geartype?.name || "").toLowerCase();
       if (!type) return false;
       if (type === "sæt" || type === "saet" || type === "teamlazer") return false;
-      return type.includes(r) || r.includes(type);
+      return type.includes(baseRole) || baseRole.includes(type);
     });
   };
 
@@ -247,113 +275,274 @@ export default function TeamLazerSets({
         <div className="text-sm text-white/40">Henter…</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sets.map((s) => (
-            <div key={s.id} className="panel" style={{ padding: 16 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span
-                  className="inline-block w-4 h-4 rounded-full border-2 border-white/30"
-                  style={{
-                    backgroundColor: resolveColorCode(s.color_code) || "#ffffff",
-                  }}
-                />
-                <input
-                  className="input flex-1"
-                  value={s.name}
-                  onChange={(e) =>
-                    setGear((curr) =>
-                      curr.map((g) => (g.id === s.id ? { ...g, name: e.target.value } : g)),
-                    )
+          {sets.map((s) => {
+            const isCollapsed = collapsed[s.id] ?? true;
+            const setColor = resolveColorCode(s.color_code) || "#6b7280";
+            const displayAssignment = assignments[s.id]?.display;
+            const displayGear = displayAssignment?.assigned_gear_id
+              ? gear.find((g) => g.id === displayAssignment.assigned_gear_id)
+              : null;
+            const displayEmei = displayGear?.emei_number || null;
+
+            return (
+              <div
+                key={s.id}
+                className="rounded-2xl bg-black/60 overflow-hidden transition-all"
+                style={{
+                  border: `2px solid ${setColor}`,
+                  boxShadow: isCollapsed
+                    ? `0 0 0 1px ${setColor}30`
+                    : `0 0 24px ${setColor}35, 0 0 0 1px ${setColor}50`,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCollapsed((c) => ({ ...c, [s.id]: !isCollapsed }))
                   }
-                  onBlur={(e) => updateSet(s.id, { name: e.target.value })}
-                />
-              </div>
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/5"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className="inline-block w-5 h-5 rounded-full shrink-0 border-2 border-white/30"
+                      style={{ backgroundColor: setColor }}
+                    />
+                    <span className="font-bold tracking-wider uppercase text-white truncate">
+                      {s.name}
+                    </span>
+                    {activityId === "A2" && (s.frequency || s.system_id) && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {s.frequency && (
+                          <span
+                            className="chip"
+                            style={{
+                              background: `${setColor}20`,
+                              color: setColor,
+                              border: `1px solid ${setColor}50`,
+                            }}
+                          >
+                            Freq {s.frequency}
+                          </span>
+                        )}
+                        {s.system_id && (
+                          <span
+                            className="chip font-mono"
+                            style={{
+                              background: `${setColor}20`,
+                              color: setColor,
+                              border: `1px solid ${setColor}50`,
+                            }}
+                          >
+                            #{s.system_id}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {isCollapsed ? (
+                    <ChevronRight className="w-5 h-5 text-white/50 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-white/50 shrink-0" />
+                  )}
+                </button>
 
-              <div className="mb-3">
-                <label className="input-label">Farve</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    className="w-10 h-10 rounded cursor-pointer border border-white/20 bg-transparent"
-                    value={resolveColorCode(s.color_code) || "#ffffff"}
-                    onChange={(e) => updateSet(s.id, { color_code: e.target.value })}
-                  />
-                  <input
-                    className="input flex-1"
-                    value={s.color_code || ""}
-                    onChange={(e) =>
-                      setGear((curr) =>
-                        curr.map((g) =>
-                          g.id === s.id ? { ...g, color_code: e.target.value } : g,
-                        ),
-                      )
-                    }
-                    onBlur={(e) => updateSet(s.id, { color_code: e.target.value })}
-                    placeholder="Farvenavn eller hex"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                {rolesForSet(s.id).map((role) => {
-                  const options = gearForRole(role);
-                  const currentId = assignments[s.id]?.[role]?.assigned_gear_id || "";
-                  const currentText = assignments[s.id]?.[role]?.assigned_text || "";
-                  return (
-                    <div key={role} className="flex flex-col">
-                      <label className="input-label capitalize">{role}</label>
-                      <select
+                {!isCollapsed && (
+                  <div className="p-4 pt-0 space-y-3 border-t border-white/5">
+                    <div>
+                      <label className="input-label">Navn</label>
+                      <input
                         className="input"
-                        value={currentId}
-                        onChange={(e) => {
-                          const gearId = e.target.value || null;
-                          const gearName =
-                            gear.find((g) => g.id === gearId)?.name || null;
-                          setAssignments((st) => ({
-                            ...st,
-                            [s.id]: {
-                              ...(st[s.id] || {}),
-                              [role]: {
-                                ...(st[s.id]?.[role] || {}),
-                                assigned_gear_id: gearId,
-                                assigned_text: gearName,
-                                role,
-                                set_gear_id: s.id,
-                              },
-                            },
-                          }));
-                          saveAssignedGear(s.id, role, gearId, gearName);
+                        value={s.name}
+                        onChange={(e) =>
+                          setGear((curr) =>
+                            curr.map((g) =>
+                              g.id === s.id ? { ...g, name: e.target.value } : g,
+                            ),
+                          )
+                        }
+                        onBlur={(e) => updateSet(s.id, { name: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="input-label">Farve</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          className="w-10 h-10 rounded cursor-pointer border border-white/20 bg-transparent"
+                          value={setColor}
+                          onChange={(e) =>
+                            updateSet(s.id, { color_code: e.target.value })
+                          }
+                        />
+                        <input
+                          className="input flex-1"
+                          value={s.color_code || ""}
+                          onChange={(e) =>
+                            setGear((curr) =>
+                              curr.map((g) =>
+                                g.id === s.id
+                                  ? { ...g, color_code: e.target.value }
+                                  : g,
+                              ),
+                            )
+                          }
+                          onBlur={(e) =>
+                            updateSet(s.id, { color_code: e.target.value })
+                          }
+                          placeholder="Farvenavn eller hex"
+                        />
+                      </div>
+                    </div>
+
+                    {activityId === "A2" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="input-label">Frekvens</label>
+                          <select
+                            className="input"
+                            value={s.frequency || ""}
+                            onChange={(e) =>
+                              updateSet(s.id, {
+                                frequency: e.target.value || null,
+                              })
+                            }
+                          >
+                            <option value="">— Vælg frekvens —</option>
+                            <option value="1">Frekvens 1</option>
+                            <option value="2">Frekvens 2</option>
+                            <option value="3">Frekvens 3</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="input-label">System ID</label>
+                          <input
+                            className="input font-mono"
+                            value={s.system_id || ""}
+                            maxLength={4}
+                            inputMode="numeric"
+                            pattern="[0-9]{4}"
+                            placeholder="4 cifre"
+                            onChange={(e) => {
+                              const digits = e.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 4);
+                              setGear((curr) =>
+                                curr.map((g) =>
+                                  g.id === s.id ? { ...g, system_id: digits } : g,
+                                ),
+                              );
+                            }}
+                            onBlur={(e) => {
+                              const digits = e.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 4);
+                              updateSet(s.id, { system_id: digits || null });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {rolesForSet(s.id).map((role) => {
+                        const options = gearForRole(role);
+                        const currentId =
+                          assignments[s.id]?.[role]?.assigned_gear_id || "";
+                        const currentText =
+                          assignments[s.id]?.[role]?.assigned_text || "";
+                        return (
+                          <div key={role} className="flex flex-col">
+                            <label className="input-label capitalize">{role}</label>
+                            <select
+                              className="input"
+                              value={currentId}
+                              onChange={(e) => {
+                                const gearId = e.target.value || null;
+                                const gearName =
+                                  gear.find((g) => g.id === gearId)?.name || null;
+                                setAssignments((st) => ({
+                                  ...st,
+                                  [s.id]: {
+                                    ...(st[s.id] || {}),
+                                    [role]: {
+                                      ...(st[s.id]?.[role] || {}),
+                                      assigned_gear_id: gearId,
+                                      assigned_text: gearName,
+                                      role,
+                                      set_gear_id: s.id,
+                                    },
+                                  },
+                                }));
+                                saveAssignedGear(s.id, role, gearId, gearName);
+                              }}
+                            >
+                              <option value="">— Vælg {role} —</option>
+                              {options.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  {g.name}
+                                  {g.out_of_service ? " (ude af drift)" : ""}
+                                </option>
+                              ))}
+                            </select>
+                            {currentId &&
+                              !options.some((o) => o.id === currentId) && (
+                                <div className="text-[10px] text-amber-400 mt-1 tracking-wider uppercase">
+                                  Tidl.: {currentText} (passer ikke til filter)
+                                </div>
+                              )}
+                            {options.length === 0 && (
+                              <div className="text-[10px] text-white/40 mt-1 tracking-wider uppercase">
+                                Ingen gear med type "{role}"
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {displayEmei && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            if (navigator.clipboard?.writeText) {
+                              await navigator.clipboard.writeText(displayEmei);
+                              toast.success(
+                                `EMEI ${displayEmei} kopieret — LiveGPS åbnet`,
+                              );
+                            }
+                          } catch {
+                            /* ignore */
+                          }
+                          window.open(
+                            "https://app.livegps.dk",
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all font-bold tracking-wider uppercase text-xs"
+                        style={{
+                          color: setColor,
+                          background: `${setColor}15`,
+                          borderColor: `${setColor}60`,
                         }}
                       >
-                        <option value="">— Vælg {role} —</option>
-                        {options.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.name}
-                            {g.out_of_service ? " (ude af drift)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {currentId && !options.some((o) => o.id === currentId) && (
-                        <div className="text-[10px] text-amber-400 mt-1 tracking-wider uppercase">
-                          Tidl. valg: {currentText} (passer ikke til nuværende filter)
-                        </div>
-                      )}
-                      {options.length === 0 && (
-                        <div className="text-[10px] text-white/40 mt-1 tracking-wider uppercase">
-                          Ingen gear med type "{role}" fundet
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        <MapPin className="w-4 h-4" />
+                        Vis på kort (EMEI {displayEmei})
+                      </button>
+                    )}
 
-              {activityId !== "A2" && (
-                <div className="mt-4">
-                  <GearBoxesGrid gearId={s.id} defaultOpen={true} />
-                </div>
-              )}
-            </div>
-          ))}
+                    {activityId !== "A2" && (
+                      <div className="pt-2">
+                        <GearBoxesGrid gearId={s.id} defaultOpen={false} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
