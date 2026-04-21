@@ -1,0 +1,410 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #000;
+    color: #fff;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* ───── Intro-animation (GAMES-stil) ───── */
+
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: intro-fadeout 0.8s ease 4.2s forwards;
+}
+
+.intro-logo {
+  font-size: clamp(48px, 9vw, 96px);
+  font-weight: 800;
+  letter-spacing: 10px;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: intro-zoom 1.5s ease 0.3s forwards;
+}
+
+.intro-logo .w {
+  color: #fff;
+}
+
+.intro-logo .o {
+  color: #ff6600;
+  text-shadow: 0 0 24px rgba(255, 102, 0, 0.6);
+}
+
+.intro-sub {
+  margin-top: 18px;
+  font-size: clamp(14px, 1.6vw, 18px);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: intro-slide 1s ease 1.8s forwards;
+}
+
+.intro-sub .by {
+  color: rgba(255, 255, 255, 0.5);
+  margin-right: 8px;
+}
+
+.intro-sub .w {
+  color: #fff;
+  font-weight: 700;
+}
+
+.intro-sub .o {
+  color: #ff6600;
+  font-weight: 700;
+}
+
+.intro-line {
+  margin-top: 22px;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, transparent, #ff6600, transparent);
+  animation: intro-line-grow 1.2s ease 2.5s forwards;
+}
+
+.intro-tagline {
+  margin-top: 16px;
+  font-size: clamp(11px, 1.1vw, 13px);
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  opacity: 0;
+  animation: intro-slide 0.8s ease 3.2s forwards;
+}
+
+.fireflies {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.firefly {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #ff6600;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 102, 0, 0.8), 0 0 16px rgba(255, 102, 0, 0.5);
+  animation-name: firefly-drift, firefly-twinkle;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+@keyframes intro-zoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+    filter: blur(20px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes intro-slide {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-line-grow {
+  to {
+    width: 200px;
+  }
+}
+
+@keyframes intro-fadeout {
+  to {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+}
+
+@keyframes firefly-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(35px, -25px);
+  }
+  50% {
+    transform: translate(10px, -55px);
+  }
+  75% {
+    transform: translate(-30px, -30px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes firefly-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.content-fade-in {
+  opacity: 0;
+  animation: content-in 0.8s ease 4.5s forwards;
+}
+
+@keyframes content-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ───── Glow-tile (GAMES-stil) ───── */
+
+.glow-tile {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #ff8a3d 0%, #ff6600 55%, #cc5200 100%);
+  border: 2px solid rgba(255, 160, 80, 0.55);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 25px rgba(255, 102, 0, 0.35),
+    inset 0 -12px 24px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.glow-tile:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 40px rgba(255, 102, 0, 0.6),
+    inset 0 -12px 24px rgba(0, 0, 0, 0.25);
+}
+
+.glow-tile-pulse {
+  animation: tile-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes tile-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 8px 18px rgba(0, 0, 0, 0.45),
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 0 20px rgba(255, 102, 0, 0.35),
+      inset 0 -12px 24px rgba(0, 0, 0, 0.25);
+  }
+  50% {
+    box-shadow:
+      0 8px 18px rgba(0, 0, 0, 0.45),
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 0 35px rgba(255, 102, 0, 0.6),
+      inset 0 -12px 24px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.tile-label {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.tile-sublabel {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.page-title {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255, 102, 0, 0.4);
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.back-btn:hover {
+  background: rgba(255, 102, 0, 0.12);
+  border-color: rgba(255, 102, 0, 0.4);
+  color: #ff6600;
+}
+
+.panel {
+  background: rgba(20, 20, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.chip-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.chip-bad {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff8a3d 0%, #ff6600 100%);
+  border: 1px solid rgba(255, 160, 80, 0.4);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(255, 102, 0, 0.35);
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 102, 0, 0.5);
+}
+
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: rgba(255, 102, 0, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.input-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 6px;
+}
