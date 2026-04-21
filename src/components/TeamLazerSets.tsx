@@ -290,7 +290,10 @@ export default function TeamLazerSets({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {sets.map((s) => {
             const isCollapsed = collapsed[s.id] ?? true;
-            const setColor = resolveColorCode(s.color_code) || "#6b7280";
+            const rawColor = resolveColorCode(s.color_code) || "#6b7280";
+            const isBlackSet = /^#?(000000?|000)$/i.test(rawColor.replace("#", ""));
+            const setColor = rawColor;
+            const borderColor = isBlackSet ? "#ffffff" : setColor;
             const displayAssignment = assignments[s.id]?.display;
             const displayGear = displayAssignment?.assigned_gear_id
               ? gear.find((g) => g.id === displayAssignment.assigned_gear_id)
@@ -302,10 +305,10 @@ export default function TeamLazerSets({
                 key={s.id}
                 className="rounded-2xl bg-black/60 overflow-hidden transition-all"
                 style={{
-                  border: `2px solid ${setColor}`,
+                  border: `2px solid ${borderColor}`,
                   boxShadow: isCollapsed
-                    ? `0 0 0 1px ${setColor}30`
-                    : `0 0 24px ${setColor}35, 0 0 0 1px ${setColor}50`,
+                    ? `0 0 0 1px ${borderColor}30`
+                    : `0 0 24px ${borderColor}35, 0 0 0 1px ${borderColor}50`,
                 }}
               >
                 <button
