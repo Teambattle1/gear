@@ -75,7 +75,7 @@ export default function TeamLazerSets({
   }, []);
 
   const sets = useMemo(() => {
-    return gear.filter((g) => {
+    const filtered = gear.filter((g) => {
       const name = g.name.toLowerCase();
       const type = (g.geartype?.name || "").toLowerCase();
       return (
@@ -85,6 +85,19 @@ export default function TeamLazerSets({
         type.includes("teamlazer") ||
         name.includes("teamlazer")
       );
+    });
+    // Sort: Øst → Vest → (none), and within each group by name
+    const locRank = (loc: string | null | undefined) => {
+      const l = (loc || "").toLowerCase();
+      if (/^(øst|ost)$/.test(l)) return 0;
+      if (/^vest$/.test(l)) return 1;
+      return 2;
+    };
+    return filtered.sort((a, b) => {
+      const la = locRank(a.location);
+      const lb = locRank(b.location);
+      if (la !== lb) return la - lb;
+      return a.name.localeCompare(b.name);
     });
   }, [gear]);
 
@@ -310,34 +323,45 @@ export default function TeamLazerSets({
                     <span className="font-bold tracking-wider uppercase text-white truncate">
                       {s.name}
                     </span>
-                    {activityId === "A2" && (s.frequency || s.system_id) && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        {s.frequency && (
-                          <span
-                            className="chip"
-                            style={{
-                              background: `${setColor}20`,
-                              color: setColor,
-                              border: `1px solid ${setColor}50`,
-                            }}
-                          >
-                            Freq {s.frequency}
-                          </span>
-                        )}
-                        {s.system_id && (
-                          <span
-                            className="chip font-mono"
-                            style={{
-                              background: `${setColor}20`,
-                              color: setColor,
-                              border: `1px solid ${setColor}50`,
-                            }}
-                          >
-                            #{s.system_id}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                      {activityId === "A2" && s.frequency && (
+                        <span
+                          className="chip"
+                          style={{
+                            background: `${setColor}20`,
+                            color: setColor,
+                            border: `1px solid ${setColor}50`,
+                          }}
+                        >
+                          Freq {s.frequency}
+                        </span>
+                      )}
+                      {activityId === "A2" && s.system_id && (
+                        <span
+                          className="chip font-mono"
+                          style={{
+                            background: `${setColor}20`,
+                            color: setColor,
+                            border: `1px solid ${setColor}50`,
+                          }}
+                        >
+                          #{s.system_id}
+                        </span>
+                      )}
+                      {s.location && (
+                        <span
+                          className={`chip ${
+                            /^(øst|ost)$/i.test(s.location)
+                              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                              : /^vest$/i.test(s.location)
+                                ? "bg-orange-500/20 text-orange-300 border border-orange-500/40"
+                                : "bg-white/10 text-white/70 border border-white/20"
+                          }`}
+                        >
+                          {s.location}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {isCollapsed ? (
                     <ChevronRight className="w-5 h-5 text-white/50 shrink-0" />
