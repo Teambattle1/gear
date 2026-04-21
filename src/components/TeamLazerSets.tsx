@@ -167,12 +167,18 @@ export default function TeamLazerSets({
     return [...base, ...extra];
   };
 
-  const saveAssignedText = async (setId: string, role: string, text: string) => {
+  const saveAssignedGear = async (
+    setId: string,
+    role: string,
+    gearId: string | null,
+    gearName: string | null,
+  ) => {
     try {
       const row = await upsertGearSetAssignment({
         set_gear_id: setId,
         role,
-        assigned_text: text || null,
+        assigned_gear_id: gearId,
+        assigned_text: gearName,
       });
       setAssignments((s) => ({
         ...s,
@@ -181,6 +187,17 @@ export default function TeamLazerSets({
     } catch {
       // ignore
     }
+  };
+
+  const gearForRole = (role: string): Gear[] => {
+    const r = role.toLowerCase();
+    return gear.filter((g) => {
+      if (sets.some((s) => s.id === g.id)) return false;
+      const type = (g.geartype?.name || "").toLowerCase();
+      if (!type) return false;
+      if (type === "sæt" || type === "saet" || type === "teamlazer") return false;
+      return type.includes(r) || r.includes(type);
+    });
   };
 
   const updateSet = async (setId: string, updates: Partial<Gear>) => {
@@ -277,31 +294,57 @@ export default function TeamLazerSets({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                {rolesForSet(s.id).map((role) => (
-                  <div key={role} className="flex flex-col">
-                    <label className="input-label capitalize">{role}</label>
-                    <input
-                      className="input"
-                      value={assignments[s.id]?.[role]?.assigned_text || ""}
-                      onChange={(e) =>
-                        setAssignments((st) => ({
-                          ...st,
-                          [s.id]: {
-                            ...(st[s.id] || {}),
-                            [role]: {
-                              ...(st[s.id]?.[role] || {}),
-                              assigned_text: e.target.value,
-                              role,
-                              set_gear_id: s.id,
+                {rolesForSet(s.id).map((role) => {
+                  const options = gearForRole(role);
+                  const currentId = assignments[s.id]?.[role]?.assigned_gear_id || "";
+                  const currentText = assignments[s.id]?.[role]?.assigned_text || "";
+                  return (
+                    <div key={role} className="flex flex-col">
+                      <label className="input-label capitalize">{role}</label>
+                      <select
+                        className="input"
+                        value={currentId}
+                        onChange={(e) => {
+                          const gearId = e.target.value || null;
+                          const gearName =
+                            gear.find((g) => g.id === gearId)?.name || null;
+                          setAssignments((st) => ({
+                            ...st,
+                            [s.id]: {
+                              ...(st[s.id] || {}),
+                              [role]: {
+                                ...(st[s.id]?.[role] || {}),
+                                assigned_gear_id: gearId,
+                                assigned_text: gearName,
+                                role,
+                                set_gear_id: s.id,
+                              },
                             },
-                          },
-                        }))
-                      }
-                      onBlur={(e) => saveAssignedText(s.id, role, e.target.value)}
-                      placeholder={role === "display" ? "Display enhed" : role}
-                    />
-                  </div>
-                ))}
+                          }));
+                          saveAssignedGear(s.id, role, gearId, gearName);
+                        }}
+                      >
+                        <option value="">— Vælg {role} —</option>
+                        {options.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}
+                            {g.out_of_service ? " (ude af drift)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {currentId && !options.some((o) => o.id === currentId) && (
+                        <div className="text-[10px] text-amber-400 mt-1 tracking-wider uppercase">
+                          Tidl. valg: {currentText} (passer ikke til nuværende filter)
+                        </div>
+                      )}
+                      {options.length === 0 && (
+                        <div className="text-[10px] text-white/40 mt-1 tracking-wider uppercase">
+                          Ingen gear med type "{role}" fundet
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {activityId !== "A2" && (
