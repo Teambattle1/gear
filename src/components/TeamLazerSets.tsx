@@ -364,34 +364,50 @@ export default function TeamLazerSets({
                       />
                     </div>
 
-                    <div>
-                      <label className="input-label">Farve</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          className="w-10 h-10 rounded cursor-pointer border border-white/20 bg-transparent"
-                          value={setColor}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="input-label">Farve</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            className="w-10 h-10 rounded cursor-pointer border border-white/20 bg-transparent"
+                            value={setColor}
+                            onChange={(e) =>
+                              updateSet(s.id, { color_code: e.target.value })
+                            }
+                          />
+                          <input
+                            className="input flex-1"
+                            value={s.color_code || ""}
+                            onChange={(e) =>
+                              setGear((curr) =>
+                                curr.map((g) =>
+                                  g.id === s.id
+                                    ? { ...g, color_code: e.target.value }
+                                    : g,
+                                ),
+                              )
+                            }
+                            onBlur={(e) =>
+                              updateSet(s.id, { color_code: e.target.value })
+                            }
+                            placeholder="Farvenavn eller hex"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="input-label">Sted</label>
+                        <select
+                          className="input"
+                          value={s.location || ""}
                           onChange={(e) =>
-                            updateSet(s.id, { color_code: e.target.value })
+                            updateSet(s.id, { location: e.target.value || null })
                           }
-                        />
-                        <input
-                          className="input flex-1"
-                          value={s.color_code || ""}
-                          onChange={(e) =>
-                            setGear((curr) =>
-                              curr.map((g) =>
-                                g.id === s.id
-                                  ? { ...g, color_code: e.target.value }
-                                  : g,
-                              ),
-                            )
-                          }
-                          onBlur={(e) =>
-                            updateSet(s.id, { color_code: e.target.value })
-                          }
-                          placeholder="Farvenavn eller hex"
-                        />
+                        >
+                          <option value="">— Vælg sted —</option>
+                          <option value="Øst">Øst</option>
+                          <option value="Vest">Vest</option>
+                        </select>
                       </div>
                     </div>
 
