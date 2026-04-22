@@ -622,6 +622,20 @@ export default function TeamLazerSets({
                     )}
 
                     <div>
+                      <label className="input-label">Batteri skiftet</label>
+                      <input
+                        type="date"
+                        className="input [&::-webkit-calendar-picker-indicator]:invert"
+                        value={s.battery_change_date || ""}
+                        onChange={(e) =>
+                          updateSet(s.id, {
+                            battery_change_date: e.target.value || null,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
                       <label className="input-label">Noter</label>
                       <textarea
                         className="input"
