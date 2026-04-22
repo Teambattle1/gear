@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ChevronDown, ChevronRight, MapPin } from "lucide-react";
+import { ChevronDown, ChevronRight, MapPin, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   createGear,
@@ -11,6 +11,7 @@ import {
   upsertGearSetAssignment,
   type Gear,
 } from "@/lib/gearApi";
+import { supabase } from "@/lib/supabase";
 import { resolveColorCode } from "@/lib/activityIcons";
 import GearBoxesGrid from "./GearBoxesGrid";
 
@@ -45,6 +46,7 @@ export default function TeamLazerSets({
   const [ensuredInitial, setEnsuredInitial] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [collapseInitialized, setCollapseInitialized] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -251,14 +253,57 @@ export default function TeamLazerSets({
     }
   };
 
+  const handleSyncLocations = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("gear-location-sync", {
+        body: { source: "ui" },
+      });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.error || "Sync fejlede");
+      const updated = data?.rows_updated ?? 0;
+      const checked = data?.displays_checked ?? 0;
+      toast.success(
+        updated > 0
+          ? `GPS-sync: ${updated} gear opdateret fra ${checked} displays`
+          : `GPS-sync OK — ${checked} displays tjekket, intet at opdatere`,
+      );
+      await load();
+      onChanged?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? `GPS-sync fejlede: ${err.message}`
+          : "GPS-sync fejlede",
+      );
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (!teamLazerTypeId) return null;
 
   return (
     <div className="panel">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="tile-label text-white">
-          {activityTitle}: Sæt ({sets.length})
-        </h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="tile-label text-white">
+            {activityTitle}: Sæt ({sets.length})
+          </h2>
+          {activityId === "A2" && (
+            <button
+              type="button"
+              onClick={handleSyncLocations}
+              disabled={syncing}
+              className="ghost-btn"
+              title="Sl\u00e5r display-GPS op via LiveGPS og s\u00e6tter \u00d8st/Vest p\u00e5 alle farve-matchende gear"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Synker…" : "Sync GPS"}
+            </button>
+          )}
+        </div>
         <form onSubmit={handleCreate} className="flex items-end gap-2 flex-wrap">
           <div>
             <label className="input-label">Navn</label>
