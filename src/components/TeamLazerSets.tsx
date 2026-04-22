@@ -23,6 +23,16 @@ type Assignment = {
   assigned_gear_id?: string | null;
 };
 
+function batteryToneFor(dateStr: string | null): string {
+  if (!dateStr) return "text-white/40";
+  const changed = new Date(dateStr).getTime();
+  if (!Number.isFinite(changed)) return "text-white/40";
+  const ageMonths = (Date.now() - changed) / (1000 * 60 * 60 * 24 * 30);
+  if (ageMonths > 12) return "text-red-400";
+  if (ageMonths > 6) return "text-amber-400";
+  return "text-emerald-400";
+}
+
 export default function TeamLazerSets({
   activityId,
   activitySlug,
@@ -539,6 +549,11 @@ export default function TeamLazerSets({
                           assignments[s.id]?.[role]?.assigned_gear_id || "";
                         const currentText =
                           assignments[s.id]?.[role]?.assigned_text || "";
+                        const currentGear = currentId
+                          ? gear.find((g) => g.id === currentId)
+                          : null;
+                        const batteryDate = currentGear?.battery_change_date || null;
+                        const batteryTone = batteryToneFor(batteryDate);
                         return (
                           <div key={role} className="flex flex-col">
                             <label className="input-label capitalize">{role}</label>
@@ -573,6 +588,13 @@ export default function TeamLazerSets({
                                 </option>
                               ))}
                             </select>
+                            {batteryDate && (
+                              <div
+                                className={`text-[10px] mt-1 tracking-wider uppercase ${batteryTone}`}
+                              >
+                                Batteri skiftet: {batteryDate}
+                              </div>
+                            )}
                             {currentId &&
                               !options.some((o) => o.id === currentId) && (
                                 <div className="text-[10px] text-amber-400 mt-1 tracking-wider uppercase">
@@ -620,20 +642,6 @@ export default function TeamLazerSets({
                         Vis på kort (EMEI {displayEmei})
                       </button>
                     )}
-
-                    <div>
-                      <label className="input-label">Batteri skiftet</label>
-                      <input
-                        type="date"
-                        className="input [&::-webkit-calendar-picker-indicator]:invert"
-                        value={s.battery_change_date || ""}
-                        onChange={(e) =>
-                          updateSet(s.id, {
-                            battery_change_date: e.target.value || null,
-                          })
-                        }
-                      />
-                    </div>
 
                     <div>
                       <label className="input-label">Noter</label>
