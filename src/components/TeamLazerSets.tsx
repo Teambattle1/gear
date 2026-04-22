@@ -621,6 +621,28 @@ export default function TeamLazerSets({
                       </button>
                     )}
 
+                    <div>
+                      <label className="input-label">Noter</label>
+                      <textarea
+                        className="input"
+                        rows={2}
+                        value={s.description || ""}
+                        onChange={(e) =>
+                          setGear((curr) =>
+                            curr.map((g) =>
+                              g.id === s.id
+                                ? { ...g, description: e.target.value }
+                                : g,
+                            ),
+                          )
+                        }
+                        onBlur={(e) =>
+                          updateSet(s.id, { description: e.target.value || null })
+                        }
+                        placeholder="Tilføj note til sættet…"
+                      />
+                    </div>
+
                     {activityId !== "A2" && (
                       <div className="pt-2">
                         <GearBoxesGrid gearId={s.id} defaultOpen={false} />
