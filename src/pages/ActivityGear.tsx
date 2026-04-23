@@ -10,6 +10,7 @@ import {
 import GearList from "@/components/GearList";
 import GearCreationModal from "@/components/GearCreationModal";
 import TeamLazerSets from "@/components/TeamLazerSets";
+import TabletsList from "@/components/TabletsList";
 import PackingLinks from "@/components/PackingLinks";
 
 const COLOR_ORDER = ["blå", "grøn", "lilla", "orange", "pink", "rød", "sort"];
@@ -104,6 +105,7 @@ export default function ActivityGear() {
   }, [items, sortMode]);
 
   const showSets = activityId === "A1" || activityId === "A2";
+  const showTablets = activityId === "A11" || activityId === "A1";
 
   return (
     <div className="min-h-screen px-4 md:px-8 py-6">
@@ -140,6 +142,8 @@ export default function ActivityGear() {
             onChanged={load}
           />
         )}
+
+        {showTablets && <TabletsList />}
 
         <div className="panel">
           <div className="flex items-center justify-between mb-4 gap-3">
