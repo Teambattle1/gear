@@ -105,7 +105,7 @@ export default function ActivityGear() {
   }, [items, sortMode]);
 
   const showSets = activityId === "A1" || activityId === "A2";
-  const showTablets = activityId === "A11" || activityId === "A1";
+  const showTablets = activityId === "A1" || activityId === "A11";
 
   return (
     <div className="min-h-screen px-4 md:px-8 py-6">

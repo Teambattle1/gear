@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ChevronDown, ChevronRight, MapPin, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, MapPin, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   createGear,
   createGeartype,
+  deleteGear,
   getGearByActivity,
   getGeartypes,
   listGearSetAssignments,
@@ -57,6 +58,8 @@ export default function TeamLazerSets({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [collapseInitialized, setCollapseInitialized] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -263,6 +266,28 @@ export default function TeamLazerSets({
     }
   };
 
+  const handleDeleteSet = async (setId: string, setName: string) => {
+    if (deleting) return;
+    setDeleting(setId);
+    try {
+      await deleteGear(setId);
+      setGear((arr) => arr.filter((g) => g.id !== setId));
+      setAssignments((s) => {
+        const { [setId]: _removed, ...rest } = s;
+        return rest;
+      });
+      setConfirmDelete(null);
+      toast.success(`${setName} slettet`);
+      onChanged?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? `Kunne ikke slette: ${err.message}` : "Kunne ikke slette sæt",
+      );
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const handleSyncLocations = async () => {
     if (syncing) return;
     setSyncing(true);
@@ -366,70 +391,109 @@ export default function TeamLazerSets({
                     : `0 0 24px ${borderColor}35, 0 0 0 1px ${borderColor}50`,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCollapsed((c) => ({ ...c, [s.id]: !isCollapsed }))
-                  }
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/5"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className="inline-block w-5 h-5 rounded-full shrink-0 border-2 border-white/30"
-                      style={{ backgroundColor: setColor }}
-                    />
-                    <span className="font-bold tracking-wider uppercase text-white truncate">
-                      {s.name}
-                    </span>
-                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                      {activityId === "A2" && s.frequency && (
-                        <span
-                          className="chip"
-                          style={{
-                            background: `${setColor}20`,
-                            color: setColor,
-                            border: `1px solid ${setColor}50`,
-                          }}
-                        >
-                          Freq {s.frequency}
-                        </span>
-                      )}
-                      {activityId === "A2" && s.system_id && (
-                        <span
-                          className="chip font-mono"
-                          style={{
-                            background: `${setColor}20`,
-                            color: setColor,
-                            border: `1px solid ${setColor}50`,
-                          }}
-                        >
-                          #{s.system_id}
-                        </span>
-                      )}
-                      {s.location && (
-                        <span
-                          className={`chip ${
-                            /^(øst|ost)$/i.test(s.location)
-                              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                              : /^vest$/i.test(s.location)
-                                ? "bg-orange-500/20 text-orange-300 border border-orange-500/40"
-                                : "bg-white/10 text-white/70 border border-white/20"
-                          }`}
-                        >
-                          {s.location}
-                        </span>
-                      )}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCollapsed((c) => ({ ...c, [s.id]: !isCollapsed }))
+                    }
+                    className="flex-1 min-w-0 flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/5"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="inline-block w-5 h-5 rounded-full shrink-0 border-2 border-white/30"
+                        style={{ backgroundColor: setColor }}
+                      />
+                      <span className="font-bold tracking-wider uppercase text-white truncate">
+                        {s.name}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                        {activityId === "A2" && s.frequency && (
+                          <span
+                            className="chip"
+                            style={{
+                              background: `${setColor}20`,
+                              color: setColor,
+                              border: `1px solid ${setColor}50`,
+                            }}
+                          >
+                            Freq {s.frequency}
+                          </span>
+                        )}
+                        {activityId === "A2" && s.system_id && (
+                          <span
+                            className="chip font-mono"
+                            style={{
+                              background: `${setColor}20`,
+                              color: setColor,
+                              border: `1px solid ${setColor}50`,
+                            }}
+                          >
+                            #{s.system_id}
+                          </span>
+                        )}
+                        {s.location && (
+                          <span
+                            className={`chip ${
+                              /^(øst|ost)$/i.test(s.location)
+                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                                : /^vest$/i.test(s.location)
+                                  ? "bg-orange-500/20 text-orange-300 border border-orange-500/40"
+                                  : "bg-white/10 text-white/70 border border-white/20"
+                            }`}
+                          >
+                            {s.location}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {isCollapsed ? (
-                    <ChevronRight className="w-5 h-5 text-white/50 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-white/50 shrink-0" />
-                  )}
-                </button>
+                    {isCollapsed ? (
+                      <ChevronRight className="w-5 h-5 text-white/50 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-white/50 shrink-0" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title="Slet sæt"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDelete(s.id);
+                      setCollapsed((c) => ({ ...c, [s.id]: false }));
+                    }}
+                    className="shrink-0 p-3 mr-1 text-red-300/60 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
 
                 {!isCollapsed && (
                   <div className="p-4 pt-0 space-y-3 border-t border-white/5">
+                    {confirmDelete === s.id && (
+                      <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/40">
+                        <span className="text-sm text-red-300 font-medium">
+                          Slet {s.name}? Kan ikke fortrydes.
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDelete(null)}
+                            disabled={deleting === s.id}
+                            className="ghost-btn"
+                          >
+                            Annuller
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSet(s.id, s.name)}
+                            disabled={deleting === s.id}
+                            className="px-3 py-2 rounded-xl bg-red-500/20 border border-red-500/60 text-red-200 hover:bg-red-500/30 text-xs font-bold tracking-wider uppercase transition-all"
+                          >
+                            {deleting === s.id ? "Sletter…" : "Slet sæt"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <label className="input-label">Navn</label>
                       <input
