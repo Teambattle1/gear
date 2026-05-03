@@ -47,7 +47,9 @@ export default function GearBoxesGrid({
   return (
     <div className="panel">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="input-label">Bokse (9 stk.)</h3>
+        <h3 className="input-label">
+          Bokse{boxes.length > 0 ? ` (${boxes.length} stk.)` : ""}
+        </h3>
         <button onClick={() => setOpen((v) => !v)} className="ghost-btn text-xs">
           {open ? "Skjul" : "Vis bokse"}
         </button>

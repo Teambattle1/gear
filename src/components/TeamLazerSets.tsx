@@ -51,6 +51,7 @@ export default function TeamLazerSets({
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("");
   const [teamLazerTypeId, setTeamLazerTypeId] = useState<string | null>(null);
+  const [setTypeId, setSetTypeId] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<
     Record<string, Record<string, Assignment>>
   >({});
@@ -86,13 +87,25 @@ export default function TeamLazerSets({
         }
       }
       setTeamLazerTypeId(found?.id || null);
+      const saet = types.find((t) => {
+        const n = t.name.toLowerCase();
+        return n === "sæt" || n === "saet";
+      });
+      setSetTypeId(saet?.id || null);
     })();
   }, []);
+
+  const isRobin = activityId === "A3";
+  const createGeartypeId = isRobin ? setTypeId : teamLazerTypeId;
+  const geartypeReady = isRobin ? !!setTypeId : !!teamLazerTypeId;
 
   const sets = useMemo(() => {
     const filtered = gear.filter((g) => {
       const name = g.name.toLowerCase();
       const type = (g.geartype?.name || "").toLowerCase();
+      if (isRobin) {
+        return type === "sæt" || type === "saet";
+      }
       return (
         name.includes("sæt") ||
         name.includes("saet") ||
@@ -118,7 +131,7 @@ export default function TeamLazerSets({
 
   useEffect(() => {
     if (!teamLazerTypeId || ensuredInitial) return;
-    if (activityId === "A2") {
+    if (activityId === "A2" || isRobin) {
       setEnsuredInitial(true);
       return;
     }
@@ -177,14 +190,15 @@ export default function TeamLazerSets({
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
-    if (!teamLazerTypeId) return;
+    if (!createGeartypeId) return;
     setCreating(true);
     try {
-      const name = newName.trim() || `SÆT ${nextSetIndex}`;
+      const fallback = isRobin ? `Buesæt ${nextSetIndex}` : `SÆT ${nextSetIndex}`;
+      const name = newName.trim() || fallback;
       await createGear({
         name,
         activity_slug: activitySlug,
-        geartype_id: teamLazerTypeId,
+        geartype_id: createGeartypeId,
         color_code: newColor || null,
       });
       setNewName("");
@@ -197,6 +211,9 @@ export default function TeamLazerSets({
   };
 
   const rolesForSet = (setId: string) => {
+    if (isRobin) {
+      return Object.keys(assignments[setId] || {});
+    }
     if (activityId === "A1") {
       return Object.keys(assignments[setId] || {}).filter(
         (r) => !["display", "kaster"].includes(r) && !r.startsWith("gevær"),
@@ -317,7 +334,7 @@ export default function TeamLazerSets({
     }
   };
 
-  if (!teamLazerTypeId) return null;
+  if (!geartypeReady) return null;
 
   return (
     <div className="panel">
@@ -345,7 +362,7 @@ export default function TeamLazerSets({
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder={`SÆT ${nextSetIndex}`}
+              placeholder={isRobin ? `Buesæt ${nextSetIndex}` : `SÆT ${nextSetIndex}`}
               className="input w-40"
             />
           </div>
