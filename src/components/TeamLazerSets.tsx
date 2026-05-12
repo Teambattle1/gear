@@ -374,6 +374,7 @@ export default function TeamLazerSets({
             const isBlackSet = /^#?(000000?|000)$/i.test(rawColor.replace("#", ""));
             const setColor = rawColor;
             const borderColor = isBlackSet ? "#ffffff" : setColor;
+            const chipColor = isBlackSet ? "#ffffff" : setColor;
             const displayAssignment = assignments[s.id]?.display;
             const displayGear = displayAssignment?.assigned_gear_id
               ? gear.find((g) => g.id === displayAssignment.assigned_gear_id)
@@ -412,9 +413,9 @@ export default function TeamLazerSets({
                           <span
                             className="chip"
                             style={{
-                              background: `${setColor}20`,
-                              color: setColor,
-                              border: `1px solid ${setColor}50`,
+                              background: `${chipColor}20`,
+                              color: chipColor,
+                              border: `1px solid ${chipColor}50`,
                             }}
                           >
                             Freq {s.frequency}
@@ -424,12 +425,24 @@ export default function TeamLazerSets({
                           <span
                             className="chip font-mono"
                             style={{
-                              background: `${setColor}20`,
-                              color: setColor,
-                              border: `1px solid ${setColor}50`,
+                              background: `${chipColor}20`,
+                              color: chipColor,
+                              border: `1px solid ${chipColor}50`,
                             }}
                           >
                             #{s.system_id}
+                          </span>
+                        )}
+                        {activityId === "A2" && s.set_length && (
+                          <span
+                            className="chip uppercase"
+                            style={{
+                              background: `${chipColor}20`,
+                              color: chipColor,
+                              border: `1px solid ${chipColor}50`,
+                            }}
+                          >
+                            {s.set_length}
                           </span>
                         )}
                         {s.location && (
@@ -558,52 +571,70 @@ export default function TeamLazerSets({
                     </div>
 
                     {activityId === "A2" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="input-label">Frekvens</label>
+                            <select
+                              className="input"
+                              value={s.frequency || ""}
+                              onChange={(e) =>
+                                updateSet(s.id, {
+                                  frequency: e.target.value || null,
+                                })
+                              }
+                            >
+                              <option value="">— Vælg frekvens —</option>
+                              <option value="1">Frekvens 1</option>
+                              <option value="2">Frekvens 2</option>
+                              <option value="3">Frekvens 3</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="input-label">System ID</label>
+                            <input
+                              className="input font-mono"
+                              value={s.system_id || ""}
+                              maxLength={4}
+                              inputMode="numeric"
+                              pattern="[0-9]{4}"
+                              placeholder="4 cifre"
+                              onChange={(e) => {
+                                const digits = e.target.value
+                                  .replace(/\D/g, "")
+                                  .slice(0, 4);
+                                setGear((curr) =>
+                                  curr.map((g) =>
+                                    g.id === s.id ? { ...g, system_id: digits } : g,
+                                  ),
+                                );
+                              }}
+                              onBlur={(e) => {
+                                const digits = e.target.value
+                                  .replace(/\D/g, "")
+                                  .slice(0, 4);
+                                updateSet(s.id, { system_id: digits || null });
+                              }}
+                            />
+                          </div>
+                        </div>
                         <div>
-                          <label className="input-label">Frekvens</label>
+                          <label className="input-label">Længde</label>
                           <select
                             className="input"
-                            value={s.frequency || ""}
+                            value={s.set_length || ""}
                             onChange={(e) =>
                               updateSet(s.id, {
-                                frequency: e.target.value || null,
+                                set_length: e.target.value || null,
                               })
                             }
                           >
-                            <option value="">— Vælg frekvens —</option>
-                            <option value="1">Frekvens 1</option>
-                            <option value="2">Frekvens 2</option>
-                            <option value="3">Frekvens 3</option>
+                            <option value="">— Vælg længde —</option>
+                            <option value="kort">Kort</option>
+                            <option value="lang">Lang</option>
                           </select>
                         </div>
-                        <div>
-                          <label className="input-label">System ID</label>
-                          <input
-                            className="input font-mono"
-                            value={s.system_id || ""}
-                            maxLength={4}
-                            inputMode="numeric"
-                            pattern="[0-9]{4}"
-                            placeholder="4 cifre"
-                            onChange={(e) => {
-                              const digits = e.target.value
-                                .replace(/\D/g, "")
-                                .slice(0, 4);
-                              setGear((curr) =>
-                                curr.map((g) =>
-                                  g.id === s.id ? { ...g, system_id: digits } : g,
-                                ),
-                              );
-                            }}
-                            onBlur={(e) => {
-                              const digits = e.target.value
-                                .replace(/\D/g, "")
-                                .slice(0, 4);
-                              updateSet(s.id, { system_id: digits || null });
-                            }}
-                          />
-                        </div>
-                      </div>
+                      </>
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

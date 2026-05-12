@@ -18,6 +18,7 @@ export type Gear = {
   battery_change_date: string | null;
   emei_number: string | null;
   system_id: string | null;
+  set_length: string | null;
   created_at?: string;
   updated_at?: string;
 };
