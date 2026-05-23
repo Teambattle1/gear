@@ -104,7 +104,7 @@ export default function ActivityGear() {
     return copy;
   }, [items, sortMode]);
 
-  const showSets = activityId === "A1" || activityId === "A2";
+  const showSets = activityId === "A1" || activityId === "A2" || activityId === "A3";
   const showTablets = activityId === "A1" || activityId === "A11";
 
   return (
