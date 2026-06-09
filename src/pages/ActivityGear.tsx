@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, ChevronDown, ChevronRight, FolderPlus } from "lucide-react";
+import { ArrowLeft, Plus, ChevronDown, ChevronRight, FolderPlus, Tag } from "lucide-react";
 import {
   getGearByActivity,
   listActivities,
   listGearCategories,
   createGearCategory,
+  createGeartype,
+  isSetGear,
   type Activity,
   type Gear,
   type GearCategory,
@@ -105,6 +107,17 @@ export default function ActivityGear() {
     }
   };
 
+  const handleNewType = async () => {
+    const name = window.prompt("Navn på ny type");
+    if (!name || !name.trim()) return;
+    try {
+      await createGeartype({ name: name.trim() });
+      toast.success(`Type "${name.trim()}" oprettet — vælg den under Rediger gear`);
+    } catch {
+      toast.error("Kunne ikke oprette type");
+    }
+  };
+
   const sortedItems = useMemo(() => {
     const copy = [...items];
     if (sortMode === "name") {
@@ -129,6 +142,13 @@ export default function ActivityGear() {
 
   const showSets = activityId === "A1" || activityId === "A2" || activityId === "A3";
   const showTablets = activityId === "A1" || activityId === "A11";
+
+  // Sæt vises i sæt-panelet (hovedkategori) og redigeres derfra — skjul dem
+  // i den almindelige gear-liste på sæt-aktiviteter.
+  const listItems = useMemo(
+    () => (showSets ? sortedItems.filter((g) => !isSetGear(g, activityId)) : sortedItems),
+    [sortedItems, showSets, activityId],
+  );
 
   return (
     <div className="min-h-screen px-4 md:px-8 py-6">
@@ -177,7 +197,7 @@ export default function ActivityGear() {
               className="flex-1 flex items-center justify-between p-2 rounded-lg hover:bg-white/5"
             >
               <span className="tile-label text-white">
-                Liste over gear ({items.length})
+                Liste over gear ({listItems.length})
               </span>
               {listCollapsed ? (
                 <ChevronRight className="w-5 h-5 text-white/50" />
@@ -185,10 +205,14 @@ export default function ActivityGear() {
                 <ChevronDown className="w-5 h-5 text-white/50" />
               )}
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <button onClick={handleNewCategory} className="ghost-btn whitespace-nowrap">
                 <FolderPlus className="w-4 h-4 text-white" />
                 Ny kategori
+              </button>
+              <button onClick={handleNewType} className="ghost-btn whitespace-nowrap">
+                <Tag className="w-4 h-4 text-white" />
+                Ny type
               </button>
               <label className="input-label mb-0">Sorter</label>
               <select
@@ -205,7 +229,7 @@ export default function ActivityGear() {
             </div>
           </div>
           {!listCollapsed && (
-            <GearList items={sortedItems} onUpdated={load} categories={categories} />
+            <GearList items={listItems} onUpdated={load} categories={categories} />
           )}
         </div>
       </div>

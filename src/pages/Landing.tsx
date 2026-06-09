@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Wrench, Search, Package, Box } from "lucide-react";
 import {
+  isSetGear,
   listActivities,
   listAllGear,
   type Activity,
@@ -12,23 +13,6 @@ import { pickIconForActivity, getActivitySubtitle } from "@/lib/activityIcons";
 // Aktiviteter med en sæt-visning (TeamChallenge, TeamLazer, TeamRobin).
 // På disse viser counteren antal SÆT i stedet for antal gear-enheder.
 const SET_ACTIVITY_IDS = new Set(["A1", "A2", "A3"]);
-
-// Samme sæt-filter som TeamLazerSets bruger, så forsidens tal stemmer
-// med "Sæt (N)" inde på aktivitetssiden.
-function isSetGear(g: Gear, activityId: string): boolean {
-  const name = (g.name || "").toLowerCase();
-  const type = (g.geartype?.name || "").toLowerCase();
-  if (activityId === "A3") {
-    return type === "sæt" || type === "saet";
-  }
-  return (
-    name.includes("sæt") ||
-    name.includes("saet") ||
-    name.includes("set") ||
-    type.includes("teamlazer") ||
-    name.includes("teamlazer")
-  );
-}
 
 export default function Landing() {
   const [activities, setActivities] = useState<Activity[]>([]);

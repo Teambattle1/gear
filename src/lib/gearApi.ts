@@ -26,6 +26,24 @@ export type Gear = {
 
 export type Geartype = { id: string; name: string };
 
+// Afgør om et gear er et "sæt" for en given aktivitet — samme logik som
+// TeamLazerSets bruger. Bruges til at skjule sæt i den almindelige gear-liste
+// (sæt er hovedkategorien i sæt-panelet) og til sæt-tal på forsiden.
+export function isSetGear(g: Gear, activityId: string): boolean {
+  const name = (g.name || "").toLowerCase();
+  const type = (g.geartype?.name || "").toLowerCase();
+  if (activityId === "A3") {
+    return type === "sæt" || type === "saet";
+  }
+  return (
+    name.includes("sæt") ||
+    name.includes("saet") ||
+    name.includes("set") ||
+    type.includes("teamlazer") ||
+    name.includes("teamlazer")
+  );
+}
+
 export type GearCategory = {
   id: string;
   activity_slug: string;

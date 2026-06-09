@@ -167,7 +167,7 @@ export default function GearList({
   if (!useCategories && items.length === 0) {
     return (
       <div className="text-center text-white/40 text-sm py-12">
-        Intet gear registreret for denne aktivitet endnu.
+        Ingen gear i listen.
       </div>
     );
   }
@@ -534,6 +534,11 @@ function GearCardVisual({
         <div className="text-[11px] font-semibold text-white/90 leading-tight truncate">
           {g.name}
         </div>
+        {g.geartype?.name && (
+          <div className="text-[8px] uppercase tracking-wider text-white/45 truncate mt-0.5">
+            {g.geartype.name}
+          </div>
+        )}
         <div
           className={`text-[9px] font-bold mt-0.5 ${
             isOos ? "text-red-400" : "text-emerald-400"
