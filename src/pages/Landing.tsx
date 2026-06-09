@@ -9,6 +9,27 @@ import {
 } from "@/lib/gearApi";
 import { pickIconForActivity, getActivitySubtitle } from "@/lib/activityIcons";
 
+// Aktiviteter med en sæt-visning (TeamChallenge, TeamLazer, TeamRobin).
+// På disse viser counteren antal SÆT i stedet for antal gear-enheder.
+const SET_ACTIVITY_IDS = new Set(["A1", "A2", "A3"]);
+
+// Samme sæt-filter som TeamLazerSets bruger, så forsidens tal stemmer
+// med "Sæt (N)" inde på aktivitetssiden.
+function isSetGear(g: Gear, activityId: string): boolean {
+  const name = (g.name || "").toLowerCase();
+  const type = (g.geartype?.name || "").toLowerCase();
+  if (activityId === "A3") {
+    return type === "sæt" || type === "saet";
+  }
+  return (
+    name.includes("sæt") ||
+    name.includes("saet") ||
+    name.includes("set") ||
+    type.includes("teamlazer") ||
+    name.includes("teamlazer")
+  );
+}
+
 export default function Landing() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [gear, setGear] = useState<Gear[]>([]);
@@ -32,6 +53,20 @@ export default function Landing() {
     }
     return map;
   }, [gear]);
+
+  // Antal sæt pr. sæt-aktivitet (kun gear, der hører til aktivitetens slug/id).
+  const setCountByActivity = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const a of activities) {
+      if (!SET_ACTIVITY_IDS.has(a.id)) continue;
+      map[a.id] = gear.filter(
+        (g) =>
+          (g.activity_slug === a.slug || g.activity_slug === a.id) &&
+          isSetGear(g, a.id),
+      ).length;
+    }
+    return map;
+  }, [activities, gear]);
 
   const oosCount = useMemo(() => gear.filter((g) => g.out_of_service).length, [gear]);
 
@@ -64,7 +99,10 @@ export default function Landing() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-y-8 gap-x-4 justify-items-center">
               {activities.map((a) => {
                 const Icon = pickIconForActivity(a.name);
-                const count = countBySlug[a.slug] || countBySlug[a.id] || 0;
+                const isSetActivity = SET_ACTIVITY_IDS.has(a.id);
+                const count = isSetActivity
+                  ? setCountByActivity[a.id] || 0
+                  : countBySlug[a.slug] || countBySlug[a.id] || 0;
                 const subtitle = getActivitySubtitle(a.name);
 
                 return (
