@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Wrench, Search, Package } from "lucide-react";
+import { Wrench, Search, Package, Box } from "lucide-react";
 import {
   listActivities,
   listAllGear,
@@ -121,6 +121,11 @@ export default function Landing() {
             <span>Find udstyr (GPS)</span>
           </Link>
 
+          <Link to="/teambox" className="ghost-btn" style={{ padding: "14px 22px" }}>
+            <Box className="w-4 h-4 text-teamb-orange" />
+            <span>TeamBox Hub</span>
+          </Link>
+
           <a
             href="https://check.eventday.dk/admin/pakkeliste"
             target="_blank"
@@ -129,7 +134,7 @@ export default function Landing() {
             style={{ padding: "14px 22px" }}
           >
             <Package className="w-4 h-4 text-emerald-400" />
-            <span>Rediger pakkelister i CHECK ↗</span>
+            <span>Rediger pakkelister i CHECK &#8599;</span>
           </a>
         </section>
       </main>

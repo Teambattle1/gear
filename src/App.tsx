@@ -5,6 +5,7 @@ import Landing from "./pages/Landing";
 import ActivityGear from "./pages/ActivityGear";
 import Maintenance from "./pages/Maintenance";
 import FindEquipment from "./pages/FindEquipment";
+import TeamBox from "./pages/TeamBox";
 
 const INTRO_KEY = "gear_intro_seen";
 
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/aktivitet/:slug" element={<ActivityGear />} />
           <Route path="/vedligeholdelse" element={<Maintenance />} />
           <Route path="/find" element={<FindEquipment />} />
+          <Route path="/teambox" element={<TeamBox />} />
           <Route path="*" element={<Landing />} />
         </Routes>
       </div>
