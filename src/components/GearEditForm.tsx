@@ -35,6 +35,11 @@ export default function GearEditForm({
   const [emeiNumber, setEmeiNumber] = useState(item.emei_number || "");
   const [saving, setSaving] = useState(false);
 
+  // Buesæt under TeamRobin (A3): serienummer og frekvens er ikke relevant.
+  const itemTypeName = (item.geartype?.name || "").toLowerCase();
+  const isRobinBueset =
+    item.activity_slug === "A3" && (itemTypeName === "sæt" || itemTypeName === "saet");
+
   useEffect(() => {
     getGeartypes().then(setGeartypes);
   }, []);
@@ -142,14 +147,16 @@ export default function GearEditForm({
             <option>Vest</option>
           </select>
         </div>
-        <div>
-          <label className="input-label">Serienummer</label>
-          <input
-            value={serialNumbers}
-            onChange={(e) => setSerialNumbers(e.target.value)}
-            className="input"
-          />
-        </div>
+        {!isRobinBueset && (
+          <div>
+            <label className="input-label">Serienummer</label>
+            <input
+              value={serialNumbers}
+              onChange={(e) => setSerialNumbers(e.target.value)}
+              className="input"
+            />
+          </div>
+        )}
         <div>
           <label className="input-label">Farvekode</label>
           <input
@@ -159,14 +166,16 @@ export default function GearEditForm({
             className="input"
           />
         </div>
-        <div>
-          <label className="input-label">Frekvens</label>
-          <input
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value)}
-            className="input"
-          />
-        </div>
+        {!isRobinBueset && (
+          <div>
+            <label className="input-label">Frekvens</label>
+            <input
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
+              className="input"
+            />
+          </div>
+        )}
       </div>
 
       <div>

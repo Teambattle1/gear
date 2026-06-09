@@ -777,7 +777,7 @@ export default function TeamLazerSets({
                       />
                     </div>
 
-                    {activityId !== "A2" && (
+                    {activityId !== "A2" && activityId !== "A3" && (
                       <div className="pt-2">
                         <GearBoxesGrid gearId={s.id} defaultOpen={false} />
                       </div>

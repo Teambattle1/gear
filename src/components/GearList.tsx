@@ -385,7 +385,7 @@ export default function GearList({
                 }}
                 onCancel={() => setEditingId(null)}
               />
-              {isSetLike(editingItem) && (
+              {isSetLike(editingItem) && editingItem.activity_slug !== "A3" && (
                 <div className="mt-6">
                   <GearBoxesGrid gearId={editingItem.id} />
                 </div>
