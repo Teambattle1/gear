@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Plus, ChevronDown, ChevronRight, FolderPlus } from "lucide-react";
 import {
   getGearByActivity,
   listActivities,
+  listGearCategories,
+  createGearCategory,
   type Activity,
   type Gear,
+  type GearCategory,
 } from "@/lib/gearApi";
 import GearList from "@/components/GearList";
 import GearCreationModal from "@/components/GearCreationModal";
 import TeamLazerSets from "@/components/TeamLazerSets";
 import TabletsList from "@/components/TabletsList";
 import PackingLinks from "@/components/PackingLinks";
+import ServiceNote from "@/components/ServiceNote";
 
 const COLOR_ORDER = ["blå", "grøn", "lilla", "orange", "pink", "rød", "sort"];
 
@@ -51,6 +56,7 @@ export default function ActivityGear() {
   const { slug = "" } = useParams();
   const nav = useNavigate();
   const [items, setItems] = useState<Gear[]>([]);
+  const [categories, setCategories] = useState<GearCategory[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -75,12 +81,29 @@ export default function ActivityGear() {
 
   const load = async () => {
     if (!slug) return;
-    setItems(await getGearByActivity(slug));
+    const [gear, cats] = await Promise.all([
+      getGearByActivity(slug),
+      listGearCategories(slug),
+    ]);
+    setItems(gear);
+    setCategories(cats);
   };
 
   useEffect(() => {
     load();
   }, [slug]);
+
+  const handleNewCategory = async () => {
+    const name = window.prompt("Navn på ny kategori");
+    if (!name || !name.trim()) return;
+    try {
+      await createGearCategory(slug, name.trim());
+      toast.success("Kategori oprettet");
+      load();
+    } catch {
+      toast.error("Kunne ikke oprette kategori");
+    }
+  };
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -132,6 +155,8 @@ export default function ActivityGear() {
           </button>
         </header>
 
+        <ServiceNote activitySlug={slug} />
+
         <PackingLinks activityId={activityId} activityName={activityTitle} />
 
         {showSets && (
@@ -161,6 +186,10 @@ export default function ActivityGear() {
               )}
             </button>
             <div className="flex items-center gap-2">
+              <button onClick={handleNewCategory} className="ghost-btn whitespace-nowrap">
+                <FolderPlus className="w-4 h-4 text-white" />
+                Ny kategori
+              </button>
               <label className="input-label mb-0">Sorter</label>
               <select
                 className="input w-40"
@@ -175,7 +204,9 @@ export default function ActivityGear() {
               </select>
             </div>
           </div>
-          {!listCollapsed && <GearList items={sortedItems} onUpdated={load} />}
+          {!listCollapsed && (
+            <GearList items={sortedItems} onUpdated={load} categories={categories} />
+          )}
         </div>
       </div>
 

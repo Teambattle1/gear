@@ -1,10 +1,34 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { X, Pencil, Power, Trash2 } from "lucide-react";
-import { deleteGear, updateGear, type Gear } from "@/lib/gearApi";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  deleteGear,
+  updateGear,
+  setGearCategory,
+  renameGearCategory,
+  deleteGearCategory,
+  type Gear,
+  type GearCategory,
+} from "@/lib/gearApi";
 import { resolveColorCode } from "@/lib/activityIcons";
 import GearEditForm from "./GearEditForm";
 import GearBoxesGrid from "./GearBoxesGrid";
+
+// Sentinel for gear uden kategori ("Ukategoriseret"-droppable)
+const UNCATEGORIZED = "__uncategorized__";
 
 function isSetLike(g: Gear): boolean {
   const name = (g.name || "").toLowerCase();
@@ -21,12 +45,47 @@ function isSetLike(g: Gear): boolean {
 export default function GearList({
   items,
   onUpdated,
+  categories,
 }: {
   items: Gear[];
   onUpdated?: () => void;
+  categories?: GearCategory[];
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  // Lokal kopi så drag kan opdatere UI'et med det samme (optimistisk),
+  // før parent har genindlæst fra databasen.
+  const [localItems, setLocalItems] = useState<Gear[]>(items);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => setLocalItems(items), [items]);
+
+  const sensors = useSensors(
+    // Mus: drag starter først efter 8px, så et klik stadig åbner detaljen
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // Touch: hold kort nede for at trække; et hurtigt tap åbner detaljen
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+
+  // Kategori-visning (sektioner + drag) bruges kun når aktiviteten HAR kategorier.
+  // Ellers vises det flade gitter som hidtil.
+  const useCategories = !!categories && categories.length > 0;
+
+  const groups = useMemo(() => {
+    const cats = [...(categories || [])].sort(
+      (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name),
+    );
+    const inCat = (id: string | null) =>
+      localItems.filter((g) => (g.category_id || null) === id);
+    const result = cats.map((c) => ({
+      key: c.id,
+      title: c.name,
+      category: c as GearCategory | null,
+      items: inCat(c.id),
+    }));
+    result.push({ key: UNCATEGORIZED, title: "Ukategoriseret", category: null, items: inCat(null) });
+    return result;
+  }, [categories, localItems]);
 
   const handleToggle = async (id: string, current: boolean) => {
     try {
@@ -49,10 +108,63 @@ export default function GearList({
     }
   };
 
-  const detailItem = items.find((x) => x.id === detailId);
-  const editingItem = items.find((x) => x.id === editingId);
+  const handleDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
 
-  if (items.length === 0) {
+  const handleDragEnd = async (e: DragEndEvent) => {
+    setActiveId(null);
+    if (!e.over) return;
+    const gearId = String(e.active.id);
+    const overId = String(e.over.id);
+    const targetCat = overId === UNCATEGORIZED ? null : overId;
+    const current = localItems.find((g) => g.id === gearId);
+    if (!current || (current.category_id || null) === targetCat) return;
+
+    // Optimistisk: flyt kortet med det samme
+    setLocalItems((prev) =>
+      prev.map((g) => (g.id === gearId ? { ...g, category_id: targetCat } : g)),
+    );
+    try {
+      await setGearCategory(gearId, targetCat);
+      onUpdated?.();
+    } catch {
+      toast.error("Kunne ikke flytte gear");
+      setLocalItems(items); // rul tilbage
+    }
+  };
+
+  const handleRenameCategory = async (cat: GearCategory) => {
+    const name = window.prompt("Omdøb kategori", cat.name);
+    if (!name || !name.trim() || name.trim() === cat.name) return;
+    try {
+      await renameGearCategory(cat.id, name.trim());
+      toast.success("Kategori omdøbt");
+      onUpdated?.();
+    } catch {
+      toast.error("Kunne ikke omdøbe kategori");
+    }
+  };
+
+  const handleDeleteCategory = async (cat: GearCategory) => {
+    if (
+      !window.confirm(
+        `Slet kategorien "${cat.name}"? Gear i kategorien flyttes til Ukategoriseret.`,
+      )
+    )
+      return;
+    try {
+      await deleteGearCategory(cat.id);
+      toast.success("Kategori slettet");
+      onUpdated?.();
+    } catch {
+      toast.error("Kunne ikke slette kategori");
+    }
+  };
+
+  const detailItem = localItems.find((x) => x.id === detailId);
+  const editingItem = localItems.find((x) => x.id === editingId);
+  const activeItem = localItems.find((x) => x.id === activeId);
+
+  if (!useCategories && items.length === 0) {
     return (
       <div className="text-center text-white/40 text-sm py-12">
         Intet gear registreret for denne aktivitet endnu.
@@ -62,71 +174,48 @@ export default function GearList({
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-        {items.map((g) => {
-          const colorHex = resolveColorCode(g.color_code) || "#6b7280";
-          const isOos = g.out_of_service;
-          const loc = (g.location || "").toLowerCase();
-          const isEast = /^(øst|ost)$/i.test(loc);
-          const isWest = /^vest$/i.test(loc);
-
-          return (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => setDetailId(g.id)}
-              className={`flex flex-col items-center gap-2 group cursor-pointer ${isOos ? "opacity-50" : ""}`}
-            >
-              <div className="relative">
-                <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-110"
-                  style={{
-                    background:
-                      "linear-gradient(145deg, rgba(40,40,40,0.95), rgba(60,60,60,0.95))",
-                    boxShadow: `inset 0 0 0 3px ${colorHex}60, 0 0 0 1px ${colorHex}30`,
-                  }}
-                >
-                  {g.image_url ? (
-                    <img
-                      src={g.image_url}
-                      alt={g.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: colorHex }}
-                    />
-                  )}
-                </div>
-                {(isEast || isWest) && (
-                  <span
-                    className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                      isEast
-                        ? "bg-cyan-500/30 text-cyan-300 border border-cyan-500/40"
-                        : "bg-orange-500/30 text-orange-300 border border-orange-500/40"
-                    }`}
-                  >
-                    {isEast ? "ØST" : "VEST"}
-                  </span>
+      {useCategories ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          <div className="space-y-5">
+            {groups.map((group) => (
+              <CategorySection
+                key={group.key}
+                id={group.key}
+                title={group.title}
+                count={group.items.length}
+                category={group.category}
+                onRename={handleRenameCategory}
+                onDelete={handleDeleteCategory}
+              >
+                {group.items.length > 0 ? (
+                  group.items.map((g) => (
+                    <DraggableCard key={g.id} g={g} onOpen={() => setDetailId(g.id)} />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center text-white/30 text-xs py-6">
+                    Træk gear hertil
+                  </div>
                 )}
-              </div>
-              <div className="text-center max-w-[100px]">
-                <div className="text-[11px] font-semibold text-white/90 leading-tight truncate">
-                  {g.name}
-                </div>
-                <div
-                  className={`text-[9px] font-bold mt-0.5 ${
-                    isOos ? "text-red-400" : "text-emerald-400"
-                  }`}
-                >
-                  {isOos ? "UDE AF DRIFT" : "I DRIFT"}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              </CategorySection>
+            ))}
+          </div>
+          <DragOverlay>
+            {activeItem ? <GearCardVisual g={activeItem} dragging /> : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+          {localItems.map((g) => (
+            <GearCardVisual key={g.id} g={g} onClick={() => setDetailId(g.id)} />
+          ))}
+        </div>
+      )}
 
       {detailItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -306,6 +395,154 @@ export default function GearList({
         </div>
       )}
     </>
+  );
+}
+
+// En kategori-sektion er en droppable zone. Gear trækkes ind her for at
+// sætte deres category_id (eller null for "Ukategoriseret").
+function CategorySection({
+  id,
+  title,
+  count,
+  category,
+  onRename,
+  onDelete,
+  children,
+}: {
+  id: string;
+  title: string;
+  count: number;
+  category: GearCategory | null;
+  onRename: (c: GearCategory) => void;
+  onDelete: (c: GearCategory) => void;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-2xl border p-4 transition-colors ${
+        isOver
+          ? "border-teamb-orange/60 bg-teamb-orange/5"
+          : "border-white/10 bg-white/[0.02]"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-baseline gap-2">
+          <span className="tile-label text-white">{title}</span>
+          <span className="text-[10px] text-white/40">({count})</span>
+        </div>
+        {category && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onRename(category)}
+              className="p-1.5 rounded-lg hover:bg-white/10"
+              title="Omdøb kategori"
+            >
+              <Pencil className="w-3.5 h-3.5 text-white/60" />
+            </button>
+            <button
+              onClick={() => onDelete(category)}
+              className="p-1.5 rounded-lg hover:bg-red-500/15"
+              title="Slet kategori"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400/80" />
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 min-h-[60px]">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Draggable wrapper omkring et gear-kort. Selve kortet er stadig klikbart
+// (tap åbner detaljen); drag aktiveres først ved bevægelse/hold.
+function DraggableCard({ g, onOpen }: { g: Gear; onOpen: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: g.id,
+  });
+  const style: React.CSSProperties = {
+    touchAction: "none",
+    opacity: isDragging ? 0.4 : 1,
+    transform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+      : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <GearCardVisual g={g} onClick={onOpen} />
+    </div>
+  );
+}
+
+// Det visuelle gear-kort (rundt ikon + navn + status). Genbruges i fladt
+// gitter, i kategori-sektioner og som DragOverlay-preview.
+function GearCardVisual({
+  g,
+  onClick,
+  dragging,
+}: {
+  g: Gear;
+  onClick?: () => void;
+  dragging?: boolean;
+}) {
+  const colorHex = resolveColorCode(g.color_code) || "#6b7280";
+  const isOos = g.out_of_service;
+  const loc = (g.location || "").toLowerCase();
+  const isEast = /^(øst|ost)$/i.test(loc);
+  const isWest = /^vest$/i.test(loc);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-2 group cursor-pointer w-full ${
+        isOos ? "opacity-50" : ""
+      } ${dragging ? "scale-105" : ""}`}
+    >
+      <div className="relative">
+        <div
+          className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-110"
+          style={{
+            background:
+              "linear-gradient(145deg, rgba(40,40,40,0.95), rgba(60,60,60,0.95))",
+            boxShadow: `inset 0 0 0 3px ${colorHex}60, 0 0 0 1px ${colorHex}30`,
+          }}
+        >
+          {g.image_url ? (
+            <img src={g.image_url} alt={g.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colorHex }} />
+          )}
+        </div>
+        {(isEast || isWest) && (
+          <span
+            className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+              isEast
+                ? "bg-cyan-500/30 text-cyan-300 border border-cyan-500/40"
+                : "bg-orange-500/30 text-orange-300 border border-orange-500/40"
+            }`}
+          >
+            {isEast ? "ØST" : "VEST"}
+          </span>
+        )}
+      </div>
+      <div className="text-center max-w-[100px]">
+        <div className="text-[11px] font-semibold text-white/90 leading-tight truncate">
+          {g.name}
+        </div>
+        <div
+          className={`text-[9px] font-bold mt-0.5 ${
+            isOos ? "text-red-400" : "text-emerald-400"
+          }`}
+        >
+          {isOos ? "UDE AF DRIFT" : "I DRIFT"}
+        </div>
+      </div>
+    </button>
   );
 }
 

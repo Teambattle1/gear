@@ -19,11 +19,19 @@ export type Gear = {
   emei_number: string | null;
   system_id: string | null;
   set_length: string | null;
+  category_id: string | null;
   created_at?: string;
   updated_at?: string;
 };
 
 export type Geartype = { id: string; name: string };
+
+export type GearCategory = {
+  id: string;
+  activity_slug: string;
+  name: string;
+  sort_order: number;
+};
 
 export type GearBox = {
   id: string;
@@ -126,6 +134,79 @@ export async function createGeartype(payload: { name: string }): Promise<Geartyp
   const { data, error } = await supabase.from("geartypes").insert(payload).select().single();
   if (error) throw error;
   return data as Geartype;
+}
+
+// ---- Gear-kategorier (per-aktivitet sektioner) -----------------------------
+export async function listGearCategories(activitySlug: string): Promise<GearCategory[]> {
+  return safe(
+    async () => {
+      const { data, error } = await supabase
+        .from("gear_categories")
+        .select("*")
+        .eq("activity_slug", activitySlug)
+        .order("sort_order")
+        .order("name");
+      if (error) throw error;
+      return (data || []) as GearCategory[];
+    },
+    [],
+    "listGearCategories",
+  );
+}
+
+export async function createGearCategory(
+  activitySlug: string,
+  name: string,
+): Promise<GearCategory> {
+  const { data, error } = await supabase
+    .from("gear_categories")
+    .insert({ activity_slug: activitySlug, name })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as GearCategory;
+}
+
+export async function renameGearCategory(id: string, name: string) {
+  const { error } = await supabase.from("gear_categories").update({ name }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteGearCategory(id: string) {
+  // FK on delete set null: gear i kategorien bliver "Ukategoriseret", ikke slettet
+  const { error } = await supabase.from("gear_categories").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function setGearCategory(gearId: string, categoryId: string | null) {
+  return updateGear(gearId, { category_id: categoryId });
+}
+
+// ---- Service-note (per-aktivitet: hvor serviceres gearet) -------------------
+export async function getServiceNote(activitySlug: string): Promise<string> {
+  return safe(
+    async () => {
+      const { data, error } = await supabase
+        .from("gear_service_notes")
+        .select("note")
+        .eq("activity_slug", activitySlug)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.note || "";
+    },
+    "",
+    "getServiceNote",
+  );
+}
+
+export async function upsertServiceNote(activitySlug: string, note: string) {
+  const { error } = await supabase
+    .from("gear_service_notes")
+    .upsert(
+      { activity_slug: activitySlug, note, updated_at: new Date().toISOString() },
+      { onConflict: "activity_slug" },
+    );
+  if (error) throw error;
 }
 
 export async function listGearSetAssignments(setId: string) {
