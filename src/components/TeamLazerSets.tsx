@@ -261,6 +261,23 @@ export default function TeamLazerSets({
     }
   };
 
+  // Gem batteriskift-dato direkte på den tildelte genstand (ikke på sættet)
+  const updateGearBattery = async (gearId: string, value: string) => {
+    const date = value || null;
+    // Optimistisk lokal opdatering så labelet/farven skifter med det samme
+    setGear((arr) =>
+      arr.map((g) => (g.id === gearId ? { ...g, battery_change_date: date } : g)),
+    );
+    try {
+      await updateGear(gearId, { battery_change_date: date });
+      toast.success(date ? "Batteridato gemt" : "Batteridato fjernet");
+      onChanged?.();
+    } catch {
+      toast.error("Kunne ikke gemme batteridato");
+      load(); // rul tilbage fra serveren
+    }
+  };
+
   const gearForRole = (role: string): Gear[] => {
     // Strip trailing slot number ("gevær 3" -> "gevær") before matching geartype
     const baseRole = role.toLowerCase().replace(/\s+\d+$/, "").trim();
@@ -700,11 +717,21 @@ export default function TeamLazerSets({
                                 </option>
                               ))}
                             </select>
-                            {batteryDate && (
-                              <div
-                                className={`text-[10px] mt-1 tracking-wider uppercase ${batteryTone}`}
-                              >
-                                Batteri skiftet: {batteryDate}
+                            {currentId && (
+                              <div className="mt-1 flex items-center gap-2">
+                                <span
+                                  className={`text-[10px] tracking-wider uppercase whitespace-nowrap ${batteryTone}`}
+                                >
+                                  Batteri skiftet
+                                </span>
+                                <input
+                                  type="date"
+                                  value={batteryDate || ""}
+                                  onChange={(e) =>
+                                    updateGearBattery(currentId, e.target.value)
+                                  }
+                                  className="input flex-1 !py-1 !px-2 !text-xs"
+                                />
                               </div>
                             )}
                             {currentId &&
