@@ -14,15 +14,18 @@ import {
   deleteGear,
   getGearByActivity,
   getGeartypes,
+  listGearLinks,
   listGearSetAssignments,
   updateGear,
   upsertGearSetAssignment,
   type Gear,
+  type GearLink,
 } from "@/lib/gearApi";
 import { supabase } from "@/lib/supabase";
 import { resolveColorCode } from "@/lib/activityIcons";
 import GearBoxesGrid from "./GearBoxesGrid";
 import BatteryChangeModal, { type BatteryRow } from "./BatteryChangeModal";
+import GearPairing from "./GearPairing";
 
 type Assignment = {
   id?: string;
@@ -71,11 +74,17 @@ export default function TeamLazerSets({
   const [deleting, setDeleting] = useState<string | null>(null);
   // null = lukket; array = hvilke sæt-id'er batteriskifte-pop-up'en viser
   const [batteryModalSetIds, setBatteryModalSetIds] = useState<string[] | null>(null);
+  const [links, setLinks] = useState<GearLink[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      setGear(await getGearByActivity(activitySlug));
+      const [g, lk] = await Promise.all([
+        getGearByActivity(activitySlug),
+        listGearLinks(),
+      ]);
+      setGear(g);
+      setLinks(lk);
     } finally {
       setLoading(false);
     }
@@ -912,6 +921,24 @@ export default function TeamLazerSets({
           })}
         </div>
       )}
+
+      {(() => {
+        const displays = gear.filter((g) =>
+          (g.geartype?.name || "").toLowerCase().includes("display"),
+        );
+        const kasters = gear.filter((g) =>
+          (g.geartype?.name || "").toLowerCase().includes("kaster"),
+        );
+        if (displays.length === 0 || kasters.length === 0) return null;
+        return (
+          <GearPairing
+            displays={displays}
+            kasters={kasters}
+            links={links}
+            onChanged={load}
+          />
+        );
+      })()}
 
       {batteryModalSetIds !== null && (
         <BatteryChangeModal

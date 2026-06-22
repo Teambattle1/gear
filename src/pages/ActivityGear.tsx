@@ -19,6 +19,7 @@ import TeamLazerSets from "@/components/TeamLazerSets";
 import TabletsList from "@/components/TabletsList";
 import PackingLinks from "@/components/PackingLinks";
 import ServiceNote from "@/components/ServiceNote";
+import ShoppingNote from "@/components/ShoppingNote";
 
 const COLOR_ORDER = ["blå", "grøn", "lilla", "orange", "pink", "rød", "sort"];
 
@@ -176,6 +177,8 @@ export default function ActivityGear() {
         </header>
 
         <ServiceNote activitySlug={slug} />
+
+        <ShoppingNote activitySlug={slug} />
 
         <PackingLinks activityId={activityId} activityName={activityTitle} />
 

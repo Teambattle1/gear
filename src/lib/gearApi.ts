@@ -228,6 +228,69 @@ export async function upsertServiceNote(activitySlug: string, note: string) {
   if (error) throw error;
 }
 
+// ---- Indkøbsnote (per-aktivitet: hvad skal købes ind / reparatør-info) ------
+export async function getShoppingNote(activitySlug: string): Promise<string> {
+  return safe(
+    async () => {
+      const { data, error } = await supabase
+        .from("gear_shopping_notes")
+        .select("note")
+        .eq("activity_slug", activitySlug)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.note || "";
+    },
+    "",
+    "getShoppingNote",
+  );
+}
+
+export async function upsertShoppingNote(activitySlug: string, note: string) {
+  const { error } = await supabase
+    .from("gear_shopping_notes")
+    .upsert(
+      { activity_slug: activitySlug, note, updated_at: new Date().toISOString() },
+      { onConflict: "activity_slug" },
+    );
+  if (error) throw error;
+}
+
+// ---- Gear-parring (Display ↔ Kaster, brugt til lokations-sync) --------------
+export type GearLink = {
+  id: string;
+  display_id: string;
+  kaster_id: string;
+};
+
+export async function listGearLinks(): Promise<GearLink[]> {
+  return safe(
+    async () => {
+      const { data, error } = await supabase
+        .from("gear_links")
+        .select("id, display_id, kaster_id");
+      if (error) throw error;
+      return (data || []) as GearLink[];
+    },
+    [],
+    "listGearLinks",
+  );
+}
+
+export async function createGearLink(displayId: string, kasterId: string) {
+  const { data, error } = await supabase
+    .from("gear_links")
+    .insert({ display_id: displayId, kaster_id: kasterId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as GearLink;
+}
+
+export async function deleteGearLink(id: string) {
+  const { error } = await supabase.from("gear_links").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function listGearSetAssignments(setId: string) {
   return safe(
     async () => {
