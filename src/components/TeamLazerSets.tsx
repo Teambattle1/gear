@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ChevronDown, ChevronRight, MapPin, RefreshCw, Trash2 } from "lucide-react";
+import {
+  BatteryCharging,
+  ChevronDown,
+  ChevronRight,
+  MapPin,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   createGear,
@@ -15,6 +22,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { resolveColorCode } from "@/lib/activityIcons";
 import GearBoxesGrid from "./GearBoxesGrid";
+import BatteryChangeModal, { type BatteryRow } from "./BatteryChangeModal";
 
 type Assignment = {
   id?: string;
@@ -61,6 +69,8 @@ export default function TeamLazerSets({
   const [syncing, setSyncing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  // null = lukket; array = hvilke sæt-id'er batteriskifte-pop-up'en viser
+  const [batteryModalSetIds, setBatteryModalSetIds] = useState<string[] | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -261,21 +271,64 @@ export default function TeamLazerSets({
     }
   };
 
-  // Gem batteriskift-dato direkte på den tildelte genstand (ikke på sættet)
-  const updateGearBattery = async (gearId: string, value: string) => {
-    const date = value || null;
-    // Optimistisk lokal opdatering så labelet/farven skifter med det samme
-    setGear((arr) =>
-      arr.map((g) => (g.id === gearId ? { ...g, battery_change_date: date } : g)),
-    );
+  // Opdater et felt på en tildelt genstand lokalt (uden at gemme til serveren endnu)
+  const setGearFieldLocal = (gearId: string, updates: Partial<Gear>) =>
+    setGear((arr) => arr.map((g) => (g.id === gearId ? { ...g, ...updates } : g)));
+
+  // Gem ét eller flere felter direkte på den tildelte genstand (ikke på sættet)
+  const patchAssignedGear = async (
+    gearId: string,
+    updates: Partial<Gear>,
+    okMsg: string,
+  ) => {
+    setGearFieldLocal(gearId, updates); // optimistisk
     try {
-      await updateGear(gearId, { battery_change_date: date });
-      toast.success(date ? "Batteridato gemt" : "Batteridato fjernet");
+      await updateGear(gearId, updates);
+      toast.success(okMsg);
       onChanged?.();
     } catch {
-      toast.error("Kunne ikke gemme batteridato");
+      toast.error("Kunne ikke gemme");
       load(); // rul tilbage fra serveren
     }
+  };
+
+  // Batteriskift-dato gemmes med det samme (date-picker giver én ændring)
+  const updateGearBattery = (gearId: string, value: string) =>
+    patchAssignedGear(
+      gearId,
+      { battery_change_date: value || null },
+      value ? "Batteridato gemt" : "Batteridato fjernet",
+    );
+
+  // Batteri-model gemmes onBlur (tekstfelt — undgå toast-spam pr. tastetryk)
+  const saveGearBatteryModel = (gearId: string, value: string) =>
+    patchAssignedGear(
+      gearId,
+      { battery_model: value.trim() || null },
+      "Batteri-model gemt",
+    );
+
+  // Saml Display + Kaster (med batteri-dato og -model) for de valgte sæt til PDF/pop-up
+  const buildBatteryRows = (setIds: string[]): BatteryRow[] => {
+    const wanted = new Set(setIds);
+    const rows: BatteryRow[] = [];
+    for (const s of sets) {
+      if (!wanted.has(s.id)) continue;
+      for (const role of ["display", "kaster"] as const) {
+        const a = assignments[s.id]?.[role];
+        if (!a?.assigned_gear_id) continue;
+        const unit = gear.find((g) => g.id === a.assigned_gear_id);
+        rows.push({
+          setName: s.name,
+          colorCode: s.color_code,
+          role: role === "display" ? "Display" : "Kaster",
+          unitName: unit?.name || a.assigned_text || "",
+          batteryDate: unit?.battery_change_date || null,
+          batteryModel: unit?.battery_model || null,
+        });
+      }
+    }
+    return rows;
   };
 
   const gearForRole = (role: string): Gear[] => {
@@ -370,6 +423,17 @@ export default function TeamLazerSets({
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Synker…" : "Sync GPS"}
+            </button>
+          )}
+          {!isRobin && sets.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setBatteryModalSetIds(sets.map((s) => s.id))}
+              className="ghost-btn"
+              title="Vis batteriskifte-oversigt og print PDF for alle sæt"
+            >
+              <BatteryCharging className="w-4 h-4" />
+              Batteriskifte
             </button>
           )}
         </div>
@@ -500,6 +564,19 @@ export default function TeamLazerSets({
                       <ChevronDown className="w-5 h-5 text-white/50 shrink-0" />
                     )}
                   </button>
+                  {!isRobin && (
+                    <button
+                      type="button"
+                      title="Batteriskifte for dette sæt"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBatteryModalSetIds([s.id]);
+                      }}
+                      className="shrink-0 p-3 text-white/50 hover:text-teamb-orange hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <BatteryCharging className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     title="Slet sæt"
@@ -683,6 +760,7 @@ export default function TeamLazerSets({
                           : null;
                         const batteryDate = currentGear?.battery_change_date || null;
                         const batteryTone = batteryToneFor(batteryDate);
+                        const batteryModel = currentGear?.battery_model || "";
                         return (
                           <div key={role} className="flex flex-col">
                             <label className="input-label capitalize">{role}</label>
@@ -730,6 +808,24 @@ export default function TeamLazerSets({
                                   onChange={(e) =>
                                     updateGearBattery(currentId, e.target.value)
                                   }
+                                  className="input flex-1 !py-1 !px-2 !text-xs"
+                                />
+                              </div>
+                            )}
+                            {currentId && (
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className="text-[10px] tracking-wider uppercase whitespace-nowrap text-white/40">
+                                  Batteri-model
+                                </span>
+                                <input
+                                  type="text"
+                                  defaultValue={batteryModel}
+                                  key={`${currentId}-${batteryModel}`}
+                                  placeholder="fx CR123A"
+                                  onBlur={(e) => {
+                                    if (e.target.value.trim() !== batteryModel)
+                                      saveGearBatteryModel(currentId, e.target.value);
+                                  }}
                                   className="input flex-1 !py-1 !px-2 !text-xs"
                                 />
                               </div>
@@ -815,6 +911,14 @@ export default function TeamLazerSets({
             );
           })}
         </div>
+      )}
+
+      {batteryModalSetIds !== null && (
+        <BatteryChangeModal
+          title={activityTitle}
+          rows={buildBatteryRows(batteryModalSetIds)}
+          onClose={() => setBatteryModalSetIds(null)}
+        />
       )}
     </div>
   );
