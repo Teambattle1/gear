@@ -16,6 +16,7 @@ import {
 import GearList from "@/components/GearList";
 import GearCreationModal from "@/components/GearCreationModal";
 import TeamLazerSets from "@/components/TeamLazerSets";
+import TeamLazerFrequencyOverview from "@/components/TeamLazerFrequencyOverview";
 import TabletsList from "@/components/TabletsList";
 import PackingLinks from "@/components/PackingLinks";
 import ServiceNote from "@/components/ServiceNote";
@@ -193,11 +194,14 @@ export default function ActivityGear() {
 
         {showTablets && <TabletsList />}
 
+        {/* TeamLazer: samme frekvens-oversigt som på crew.eventday.dk (samme delte gear-tabel) */}
+        {activityId === "A2" && <TeamLazerFrequencyOverview items={listItems} />}
+
         <div className="panel">
-          <div className="flex items-center justify-between mb-4 gap-3">
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <button
               onClick={() => setListCollapsed((v) => !v)}
-              className="flex-1 flex items-center justify-between p-2 rounded-lg hover:bg-white/5"
+              className="flex-1 min-w-[160px] flex items-center justify-between p-2 rounded-lg hover:bg-white/5"
             >
               <span className="tile-label text-white">
                 Liste over gear ({listItems.length})
