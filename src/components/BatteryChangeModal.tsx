@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 import { BatteryCharging, Printer } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { resolveColorCode } from "@/lib/activityIcons";
 
 export type BatteryRow = {
@@ -50,7 +48,11 @@ export default function BatteryChangeModal({
     [rows],
   );
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF({ orientation: "portrait" });
     doc.setFontSize(16);
     doc.text(`Batteriskifte — ${title}`, 14, 18);

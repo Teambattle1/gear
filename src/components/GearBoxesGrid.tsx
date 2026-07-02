@@ -58,7 +58,7 @@ export default function GearBoxesGrid({
         (loading ? (
           <div className="text-sm text-white/40">Henter…</div>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-9 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-9 gap-2">
             {boxes.map((b) => (
               <button
                 key={b.id}

@@ -18,6 +18,7 @@ import {
   listGearSetAssignments,
   updateGear,
   upsertGearSetAssignment,
+  isSetGear,
   type Gear,
   type GearLink,
 } from "@/lib/gearApi";
@@ -119,20 +120,7 @@ export default function TeamLazerSets({
   const geartypeReady = isRobin ? !!setTypeId : !!teamLazerTypeId;
 
   const sets = useMemo(() => {
-    const filtered = gear.filter((g) => {
-      const name = g.name.toLowerCase();
-      const type = (g.geartype?.name || "").toLowerCase();
-      if (isRobin) {
-        return type === "sæt" || type === "saet";
-      }
-      return (
-        name.includes("sæt") ||
-        name.includes("saet") ||
-        name.includes("set") ||
-        type.includes("teamlazer") ||
-        name.includes("teamlazer")
-      );
-    });
+    const filtered = gear.filter((g) => isSetGear(g, activityId));
     // Sort: Øst → Vest → (none), and within each group by name
     const locRank = (loc: string | null | undefined) => {
       const l = (loc || "").toLowerCase();
@@ -446,26 +434,26 @@ export default function TeamLazerSets({
             </button>
           )}
         </div>
-        <form onSubmit={handleCreate} className="flex items-end gap-2 flex-wrap">
-          <div>
+        <form onSubmit={handleCreate} className="flex items-end gap-2 flex-wrap w-full sm:w-auto">
+          <div className="flex-1 sm:flex-none min-w-0">
             <label className="input-label">Navn</label>
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={isRobin ? `Buesæt ${nextSetIndex}` : `SÆT ${nextSetIndex}`}
-              className="input w-40"
+              className="input w-full sm:w-40"
             />
           </div>
-          <div>
+          <div className="flex-1 sm:flex-none min-w-0">
             <label className="input-label">Farve</label>
             <input
               value={newColor}
               onChange={(e) => setNewColor(e.target.value)}
               placeholder="#0ea5e9 eller blå"
-              className="input w-40"
+              className="input w-full sm:w-40"
             />
           </div>
-          <button type="submit" disabled={creating} className="primary-btn">
+          <button type="submit" disabled={creating} className="primary-btn w-full sm:w-auto">
             {creating ? "Opretter…" : "Opret sæt"}
           </button>
         </form>
@@ -770,6 +758,9 @@ export default function TeamLazerSets({
                         const batteryDate = currentGear?.battery_change_date || null;
                         const batteryTone = batteryToneFor(batteryDate);
                         const batteryModel = currentGear?.battery_model || "";
+                        // Gevær har ikke batteri — skjul batteri-felterne for gevær-roller
+                        const isGevaer = role.toLowerCase().includes("gevær") ||
+                          role.toLowerCase().includes("gevaer");
                         return (
                           <div key={role} className="flex flex-col">
                             <label className="input-label capitalize">{role}</label>
@@ -804,7 +795,7 @@ export default function TeamLazerSets({
                                 </option>
                               ))}
                             </select>
-                            {currentId && (
+                            {currentId && !isGevaer && (
                               <div className="mt-1 flex items-center gap-2">
                                 <span
                                   className={`text-[10px] tracking-wider uppercase whitespace-nowrap ${batteryTone}`}
@@ -821,7 +812,7 @@ export default function TeamLazerSets({
                                 />
                               </div>
                             )}
-                            {currentId && (
+                            {currentId && !isGevaer && (
                               <div className="mt-1 flex items-center gap-2">
                                 <span className="text-[10px] tracking-wider uppercase whitespace-nowrap text-white/40">
                                   Batteri-model

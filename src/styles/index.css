@@ -266,7 +266,7 @@
 }
 
 .page-title {
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: clamp(20px, 4vw, 42px);
   font-weight: 800;
   letter-spacing: 4px;
   text-transform: uppercase;

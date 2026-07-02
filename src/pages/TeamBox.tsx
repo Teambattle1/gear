@@ -130,7 +130,7 @@ export default function TeamBox() {
           <p className="mt-2 text-xs tracking-[3px] text-white/40 uppercase">Portable Escaperoom Experience</p>
         </header>
 
-        <div className="grid grid-cols-2 tablet:grid-cols-3 gap-3 tablet:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {TILES.map((tile) => {
             const c = TILE_COLORS[tile.color];
             const Icon = tile.icon;

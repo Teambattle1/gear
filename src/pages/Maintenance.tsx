@@ -180,14 +180,14 @@ export default function Maintenance() {
     <div className="min-h-screen px-4 md:px-8 py-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => nav("/")} className="back-btn">
               <ArrowLeft className="w-4 h-4" />
               Tilbage
             </button>
-            <div className="flex items-center gap-2">
-              <Wrench className="w-6 h-6 text-amber-400" />
-              <h1 className="page-title text-2xl">Vedligeholdelse</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <Wrench className="w-6 h-6 text-amber-400 shrink-0" />
+              <h1 className="page-title truncate">Vedligeholdelse</h1>
             </div>
           </div>
           <button onClick={handlePrint} className="ghost-btn">
@@ -196,7 +196,7 @@ export default function Maintenance() {
           </button>
         </header>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard label="Total gear" value={items.length} tone="neutral" />
           <StatCard label="I drift" value={activeCount} tone="ok" />
           <StatCard label="Ude af drift" value={oosItems.length} tone="bad" />
@@ -263,7 +263,7 @@ export default function Maintenance() {
                                   <select
                                     value={issue?.assigned_to || ""}
                                     onChange={(e) => handleAssign(g.id, e.target.value)}
-                                    className="input w-48"
+                                    className="input w-full sm:w-48"
                                   >
                                     <option value="">Repareres af…</option>
                                     {crew.map((c) => (

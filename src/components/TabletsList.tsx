@@ -16,8 +16,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import {
   createTablet,
   deleteTablet,
@@ -387,7 +385,11 @@ export default function TabletsList() {
     setShowPdfModal(true);
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     let list = [...tablets];
     if (pdfFilterColor) list = list.filter((t) => t.color === pdfFilterColor);
     if (pdfFilterPlacering) list = list.filter((t) => t.placering === pdfFilterPlacering);
@@ -577,7 +579,7 @@ export default function TabletsList() {
           {showCreate && (
             <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
               <h3 className="text-base font-semibold text-white mb-3">Ny tablet</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Model *</label>
                   <input

@@ -20,6 +20,7 @@ import {
   setGearCategory,
   renameGearCategory,
   deleteGearCategory,
+  isSetGear,
   type Gear,
   type GearCategory,
 } from "@/lib/gearApi";
@@ -29,18 +30,6 @@ import GearBoxesGrid from "./GearBoxesGrid";
 
 // Sentinel for gear uden kategori ("Ukategoriseret"-droppable)
 const UNCATEGORIZED = "__uncategorized__";
-
-function isSetLike(g: Gear): boolean {
-  const name = (g.name || "").toLowerCase();
-  const type = (g.geartype?.name || "").toLowerCase();
-  return (
-    name.includes("sæt") ||
-    name.includes("saet") ||
-    name.includes("set") ||
-    type.includes("teamlazer") ||
-    name.includes("teamlazer")
-  );
-}
 
 export default function GearList({
   items,
@@ -223,7 +212,7 @@ export default function GearList({
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setDetailId(null)}
           />
-          <div className="relative panel w-full max-w-md mx-4 overflow-hidden p-0">
+          <div className="relative panel w-full max-w-md sm:max-w-lg mx-4 overflow-hidden p-0">
             <div
               className="h-2 w-full"
               style={{
@@ -275,7 +264,7 @@ export default function GearList({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-5 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 text-sm">
                 <DetailCell label="Type" value={detailItem.geartype?.name || "—"} />
                 <DetailCell label="Sted" value={detailItem.location || "—"} />
                 {detailItem.color_code && (
@@ -385,7 +374,8 @@ export default function GearList({
                 }}
                 onCancel={() => setEditingId(null)}
               />
-              {isSetLike(editingItem) && editingItem.activity_slug !== "A3" && (
+              {isSetGear(editingItem, editingItem.activity_slug) &&
+                editingItem.activity_slug !== "A3" && (
                 <div className="mt-6">
                   <GearBoxesGrid gearId={editingItem.id} />
                 </div>

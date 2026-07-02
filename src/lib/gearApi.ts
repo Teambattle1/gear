@@ -21,6 +21,11 @@ export type Gear = {
   system_id: string | null;
   set_length: string | null;
   category_id: string | null;
+  // Vedligehold — findes på den delte gear-tabel (ejes/redigeres primært i CREW),
+  // her kun læst til oversigten. Hentes allerede med via select("*").
+  maintenance_date?: string | null;
+  maintenance_note?: string | null;
+  next_checkup?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -39,7 +44,7 @@ export function isSetGear(g: Gear, activityId: string): boolean {
   return (
     name.includes("sæt") ||
     name.includes("saet") ||
-    name.includes("set") ||
+    /\bset\b/.test(name) ||
     type.includes("teamlazer") ||
     name.includes("teamlazer")
   );
