@@ -6,7 +6,7 @@
  */
 export const CM_CSS = `
 .cm-root, .cm-root * { box-sizing: border-box; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-.cm-root { --cm-accent: #d946ef; --cm-accent2: #a855f7; --cm-bg: #0d0d12; --cm-card: #17171f; --cm-line: rgba(255,255,255,0.10); --cm-text: #f5f5f7; --cm-dim: #c7c7d1; --cm-green: #22c55e; --cm-red: #ef4444; --cm-amber: #f59e0b; --cm-blue: #60a5fa; }
+.cm-root { pointer-events: auto; --cm-accent: #d946ef; --cm-accent2: #a855f7; --cm-bg: #0d0d12; --cm-card: #17171f; --cm-line: rgba(255,255,255,0.10); --cm-text: #f5f5f7; --cm-dim: #c7c7d1; --cm-green: #22c55e; --cm-red: #ef4444; --cm-amber: #f59e0b; --cm-blue: #60a5fa; }
 .cm-btn { appearance: none; border: 0; cursor: pointer; font: inherit; color: inherit; background: none; }
 .cm-fab { position: fixed; z-index: 2147483610; width: 58px; height: 58px; border-radius: 20px; transform: translate(-50%, -50%);
   background: linear-gradient(140deg, var(--cm-accent), var(--cm-accent2)); color: #fff; display: flex; align-items: center; justify-content: center;

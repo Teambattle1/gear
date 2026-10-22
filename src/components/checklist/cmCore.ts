@@ -21,7 +21,13 @@ export const KIND_LABEL: Record<CmKind, string> = { bug: 'Fejl', text: 'Tekst', 
 
 /** Åbn panelet (pakkerne) fra en knap hvor som helst i appen. */
 export const CM_PANEL_EVENT = 'cm:open-panel';
-export const openChecklistPanel = (): void => { window.dispatchEvent(new Event(CM_PANEL_EVENT)); };
+// Kaldes knappen lige efter et login, er laget måske ikke monteret endnu — så huskes ønsket, til det er.
+let cmPanelPending = false;
+export const openChecklistPanel = (): void => { cmPanelPending = true; window.dispatchEvent(new Event(CM_PANEL_EVENT)); };
+/** Laget kalder denne, når det er klar: true = nogen bad om panelet, før laget lyttede. */
+export const takePendingPanelOpen = (): boolean => { const p = cmPanelPending; cmPanelPending = false; return p; };
+/** Kittets version — sammenlign med kopien i en app for at se, om den er bagud. */
+export const CM_KIT_VERSION = '1.1.0';
 
 /** Elementer med dette mærke (eller under et) hører til laget: aldrig et mål, aldrig på billedet. */
 export const CM_LAYER_ATTR = 'data-cm-layer';
@@ -355,10 +361,20 @@ export const isLive = (fixVersion: string | undefined, appVersion: string): bool
 
 const TEXT_MAX = 80;
 
-export const elementRectPct = (el: Element, vp: { w: number; h: number }): CmRect => {
+/** Den SYNLIGE del af siden. Er siden bredere end telefonen, er innerWidth større end det, man ser —
+ *  så billede og ramme regnes ud fra visualViewport. x/y = forskydning i forhold til layoutet, pageX/pageY = i dokumentet. */
+export interface CmVisibleArea { x: number; y: number; w: number; h: number; pageX: number; pageY: number }
+export const visibleArea = (): CmVisibleArea => {
+  const v = window.visualViewport;
+  if (v) return { x: v.offsetLeft, y: v.offsetTop, w: v.width, h: v.height, pageX: v.pageLeft, pageY: v.pageTop };
+  return { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight, pageX: window.scrollX, pageY: window.scrollY };
+};
+
+export const elementRectPct = (el: Element, vp: { w: number; h: number; x?: number; y?: number }): CmRect => {
   const r = el.getBoundingClientRect();
   const pct = (v: number, of: number) => (of > 0 ? Math.round((v / of) * 1000) / 10 : 0);
-  return { x: pct(r.left, vp.w), y: pct(r.top, vp.h), w: pct(r.width, vp.w), h: pct(r.height, vp.h) };
+  const ox = vp.x || 0, oy = vp.y || 0;
+  return { x: pct(r.left - ox, vp.w), y: pct(r.top - oy, vp.h), w: pct(r.width, vp.w), h: pct(r.height, vp.h) };
 };
 
 const segmentOf = (el: Element): string => {
@@ -434,7 +450,7 @@ export const componentNamesOf = (el: Element, max = 6): string[] => {
   return out;
 };
 
-export const describeElement = (el: Element, vp: { w: number; h: number }): CmElement => {
+export const describeElement = (el: Element, vp: { w: number; h: number; x?: number; y?: number }): CmElement => {
   const tid = nearestTestid(el);
   const role = el.getAttribute('role') || undefined;
   const ariaLabel = collapse(el.getAttribute('aria-label')) || undefined;
@@ -511,7 +527,10 @@ export const resolveScreen = (el: Element | null, doc: Document): CmScreen => {
     const def = config.screens.find(d => d.path === key);
     return { key, label: def?.label || marked.getAttribute('data-screen-label') || key, ...(state ? { state } : {}), ...(def?.file ? { file: def.file } : base.file ? { file: base.file } : {}) };
   }
-  const dialog = (el?.closest('[role="dialog"],[role="alertdialog"]') || doc.querySelector('[role="dialog"]:not([data-cm-layer]),[role="alertdialog"]:not([data-cm-layer])')) as HTMLElement | null;
+  // Kun SYNLIGE dialoger tæller — en skjult (display:none/hidden) må ikke blive skærmens tilstand.
+  const shown = (d: Element | null | undefined): d is HTMLElement => !!d && (d as HTMLElement).getClientRects().length > 0;
+  const near = el?.closest('[role="dialog"],[role="alertdialog"]');
+  const dialog = (shown(near) ? near : Array.from(doc.querySelectorAll('[role="dialog"]:not([data-cm-layer]),[role="alertdialog"]:not([data-cm-layer])')).find(shown)) as HTMLElement | undefined;
   if (dialog && !dialog.closest(`[${CM_LAYER_ATTR}]`)) {
     const title = collapse(dialog.getAttribute('aria-label') || dialog.querySelector('h1,h2,h3,[role="heading"]')?.textContent || '').slice(0, 60);
     if (title) return { ...base, state: `dialog=${title}` };
