@@ -8,6 +8,7 @@ import {
   type Activity,
   type Gear,
 } from "@/lib/gearApi";
+import AdminLogin from "@/components/AdminLogin";
 import { pickIconForActivity, getActivitySubtitle } from "@/lib/activityIcons";
 
 // Aktiviteter med en sæt-visning (TeamChallenge, TeamLazer, TeamRobin).
@@ -158,6 +159,10 @@ export default function Landing() {
             <Package className="w-4 h-4 text-emerald-400" />
             <span>Rediger pakkelister i CHECK &#8599;</span>
           </a>
+        </section>
+
+        <section className="mt-12">
+          <AdminLogin />
         </section>
       </main>
     </div>
