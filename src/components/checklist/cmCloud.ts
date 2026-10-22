@@ -13,7 +13,7 @@
  * panelet siger «n fund venter på skyen».
  */
 import {
-  CM_LAYER_ATTR, drawMarker, getCmConfig, getCmState, openPackageOf, patchCmItem, patchCmPackage, titleAvoiding, uid, updateCm,
+  CM_LAYER_ATTR, drawMarker, visibleArea, getCmConfig, getCmState, openPackageOf, patchCmItem, patchCmPackage, titleAvoiding, uid, updateCm,
   type CmItem, type CmItemStatus, type CmPackage, type CmRect,
 } from './cmCore';
 
@@ -50,10 +50,12 @@ export const captureMarked = async (rect: CmRect | null, n: number): Promise<CmS
   try {
     const mod = await import('html2canvas-pro');
     const html2canvas = (mod.default || mod) as (el: HTMLElement, o: object) => Promise<HTMLCanvasElement>;
-    const w = window.innerWidth, h = window.innerHeight;
+    // Kun det synlige udsnit — på en side bredere end telefonen blev billedet ellers mest tomt.
+    const va = visibleArea();
+    const w = Math.round(va.w), h = Math.round(va.h);
     const scale = Math.min(1, CAPTURE_MAX_W / Math.max(1, w));
     const canvas = await withTimeout(html2canvas(document.body, {
-      x: window.scrollX, y: window.scrollY, width: w, height: h, windowWidth: w, windowHeight: h,
+      x: va.pageX, y: va.pageY, width: w, height: h, windowWidth: window.innerWidth, windowHeight: window.innerHeight,
       scale, useCORS: true, logging: false, backgroundColor: null,
       ignoreElements: (el: Element) => el.hasAttribute?.(CM_LAYER_ATTR) || el.hasAttribute?.('data-bug-ignore'),
       // Kopien genstarter CSS-animationer fra 0 % — en fade-in fra usynlig gav et næsten tomt billede.
