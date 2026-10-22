@@ -108,6 +108,21 @@ Activity slug resolution is twofold: `listActivities()` slugifies `activity.id` 
 
 **Path alias.** `@/*` → `src/*` (configured in both `vite.config.ts` and `tsconfig.app.json`). Imports use `@/lib/...`, `@/components/...`, `@/pages/...`.
 
+## Admin-login (kode, tjekket på serveren)
+
+GEAR er ellers åben uden login. Admin-loginet gater KUN Checklist mode.
+- Knappen «Admin» (lås) sidder nederst på forsiden (`components/AdminLogin.tsx`) → dialog med ét 4-tegns felt (`inputmode="numeric"`, sender automatisk ved 4 tegn).
+- Koden tjekkes server-side af den fælles edge function `ef-verify-code` på MAIN (`supabase.functions.invoke`, `lib/adminSession.ts` → `verifyAdminCode`). **Skriv aldrig koden i klienten.** Admin = `type === 'admin'` eller `type === 'user_sites'` med `role` `admin`/`ef_admin`; alt andet afvises.
+- Bremse: 5 forkerte → 60 sek. pause (modul-niveau, overlever at dialogen lukkes); serverens egen 429 giver også pausen.
+- Session i `localStorage["gear_admin_session"]` = `{ name, expiresAt }`, 12 timer. `useAdminSession()` lytter på ændringer/`storage` og tjekker udløb hvert minut, så laget slukker selv. «Admin · Log ud» rydder den.
+
+## Checklist mode
+
+Admin-laget fra Checklist-kittet (`teambattle-workspace/checklist-kit`) — peg på en fejl → skærmbillede → dagens pakke → `/checklist dd/mm-A` (`.claude/skills/checklist/SKILL.md`).
+- Filer: `src/components/checklist/` — `cmCore`/`cmCloud`/`cmStyles`/`ChecklistMode` er **kopier fra kittet og må ikke rettes her** (ret i kittet og kopiér ud til alle apps). Egne filer: `GearChecklist.tsx` (indgang, mountet i `main.tsx` ved siden af `<App/>`) og `cmScreens.ts` (rute → fil; ny rute i `App.tsx` = én række dér).
+- Kontakten: forsiden → «Admin» → kode → knappen «Checklist mode» (kalder `openChecklistPanel()`); `?checklist=1` virker også for en admin.
+- App-nøgle `gear`; data i MAIN `cm_packages`/`cm_items` (`app='gear'`) via appens egen `supabase`-klient. Afhængighed `html2canvas-pro` (lazy-loadet).
+
 ## URL-tilstand: nuqs som standard
 
 Brug **nuqs** som standardvalg til al "URL-værdig" tilstand i alle projekter
