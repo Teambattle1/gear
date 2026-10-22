@@ -579,11 +579,17 @@ const ChecklistMode: React.FC<ChecklistModeProps> = ({ app, appName, version = '
   // Mister sessionen admin, slukker laget sig selv — en udlånt enhed må aldrig stå med det tændt.
   useEffect(() => { if (!isAdmin && getCmState().enabled) setCmEnabled(false); }, [isAdmin]);
 
+  // Appens «Checklist mode»-knap virker som i TeamTrack: er laget slukket, TÆNDES det med ét tryk
+  // (og dagens pakke åbnes); er det tændt, åbnes panelet, hvor man sender pakken eller slukker.
+  const justOnRef = useRef(false);
   useEffect(() => {
-    const open = () => { takePendingPanelOpen(); setPanel(true); };
+    const open = () => {
+      takePendingPanelOpen();
+      if (!getCmState().enabled) { setCmEnabled(true); justOnRef.current = true; return; }
+      setPanel(true);
+    };
     window.addEventListener(CM_PANEL_EVENT, open);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (takePendingPanelOpen()) setPanel(true);
+    if (takePendingPanelOpen()) open();
     return () => window.removeEventListener(CM_PANEL_EVENT, open);
   }, []);
 
@@ -604,6 +610,10 @@ const ChecklistMode: React.FC<ChecklistModeProps> = ({ app, appName, version = '
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2600);
   }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (active && justOnRef.current) { justOnRef.current = false; showToast('Checklist mode er tændt — tryk på den lilla knap og peg på det, der skal rettes'); }
+  }, [active, showToast]);
 
   // Sektionen lukkes af sig selv ved skærmskift — sig det, når den havde fund.
   useEffect(() => {
