@@ -27,7 +27,7 @@ export const openChecklistPanel = (): void => { cmPanelPending = true; window.di
 /** Laget kalder denne, når det er klar: true = nogen bad om panelet, før laget lyttede. */
 export const takePendingPanelOpen = (): boolean => { const p = cmPanelPending; cmPanelPending = false; return p; };
 /** Kittets version — sammenlign med kopien i en app for at se, om den er bagud. */
-export const CM_KIT_VERSION = '1.2.0';
+export const CM_KIT_VERSION = '1.2.1';
 
 /** Elementer med dette mærke (eller under et) hører til laget: aldrig et mål, aldrig på billedet. */
 export const CM_LAYER_ATTR = 'data-cm-layer';
