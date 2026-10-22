@@ -374,9 +374,18 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     await refreshStatuses();
     setCloud(await fetchCloudPackages());
   }, []);
-  // Hent skyen én gang, når panelet åbner (react-hooks v7 klager over setState i effekten — bevidst).
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void reload(); }, [reload]);
+  // Hent skyen én gang, når panelet åbner. setState sker først efter await (ikke synkront
+  // i effekten), så react-hooks v7 er tilfreds uden eslint-undtagelse — virker i alle apps.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      await syncCm();
+      await refreshStatuses();
+      const c = await fetchCloudPackages();
+      if (alive) setCloud(c);
+    })();
+    return () => { alive = false; };
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !zoom) onClose(); };
     window.addEventListener('keydown', onKey);
@@ -610,9 +619,15 @@ const ChecklistMode: React.FC<ChecklistModeProps> = ({ app, appName, version = '
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2600);
   }, []);
+  // Kvittering når laget lige er tændt. Udskudt ét tick, så toasten ikke sættes synkront
+  // i effekten (react-hooks v7); flaget nulstilles først i timeren, så StrictMode ikke taber den.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (active && justOnRef.current) { justOnRef.current = false; showToast('Checklist mode er tændt — tryk på den lilla knap og peg på det, der skal rettes'); }
+    if (!active || !justOnRef.current) return;
+    const t = setTimeout(() => {
+      justOnRef.current = false;
+      showToast('Checklist mode er tændt — tryk på den lilla knap og peg på det, der skal rettes');
+    }, 0);
+    return () => clearTimeout(t);
   }, [active, showToast]);
 
   // Sektionen lukkes af sig selv ved skærmskift — sig det, når den havde fund.
