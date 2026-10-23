@@ -43,6 +43,18 @@ const toDataUrl = (canvas: HTMLCanvasElement, maxW: number, q: number): string =
   return c.toDataURL('image/jpeg', q);
 };
 
+// Sidens egen baggrundsfarve. JPEG har ingen gennemsigtighed: med
+// `backgroundColor: null` blev alt uden egen baggrund SORT, så mørk tekst i
+// lyst tema forsvandt helt (kun farvede ikoner og rammen kom med).
+const pageBackground = (): string => {
+  const isSolid = (c: string) => !!c && c !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(c);
+  for (const el of [document.body, document.documentElement]) {
+    const c = getComputedStyle(el).backgroundColor;
+    if (isSolid(c)) return c;
+  }
+  return '#ffffff';
+};
+
 export interface CmShot { shot: string; thumb: string }
 
 /** Skærmen, som den ser ud NU (laget selv er ikke med), med ramme om elementet. `null` = intet billede. */
@@ -56,7 +68,7 @@ export const captureMarked = async (rect: CmRect | null, n: number): Promise<CmS
     const scale = Math.min(1, CAPTURE_MAX_W / Math.max(1, w));
     const canvas = await withTimeout(html2canvas(document.body, {
       x: va.pageX, y: va.pageY, width: w, height: h, windowWidth: window.innerWidth, windowHeight: window.innerHeight,
-      scale, useCORS: true, logging: false, backgroundColor: null,
+      scale, useCORS: true, logging: false, backgroundColor: pageBackground(),
       ignoreElements: (el: Element) => el.hasAttribute?.(CM_LAYER_ATTR) || el.hasAttribute?.('data-bug-ignore'),
       // Kopien genstarter CSS-animationer fra 0 % — en fade-in fra usynlig gav et næsten tomt billede.
       onclone: (doc: Document) => {
