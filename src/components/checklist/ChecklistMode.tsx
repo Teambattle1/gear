@@ -365,6 +365,8 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { version, appName } = getCmConfig();
   const [cloud, setCloud] = useState<CloudPackage[] | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
+  // Bekræft-boks i lagets eget design (browserens confirm() kan ikke screendumpes)
+  const [ask, setAsk] = useState<{ text: string; run: () => Promise<void> } | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = pendingCount();
@@ -387,10 +389,14 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return () => { alive = false; };
   }, []);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !zoom) onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (ask) setAsk(null);
+      else if (!zoom) onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, zoom]);
+  }, [onClose, zoom, ask]);
 
   const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(null), 2200); };
   const localIds = new Set(state.packages.map(p => p.id));
@@ -409,13 +415,15 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const doCopy = async (p: { id: string; title: string; status: string; createdAt: number; items: CmItem[] }) => {
     flash((await copyText(packageToMarkdown(p as CmPackage))) ? 'Pakken er kopieret som tekst' : 'Kunne ikke kopiere');
   };
-  const doDelete = async (p: CmPackage) => {
-    if (!window.confirm(`Slet pakke ${p.title} med ${p.items.length} fund? Det kan ikke fortrydes.`)) return;
-    if (p.cloud) await deleteCloudPackage(p.id);
-    await deleteShots(p.items.map(i => i.id));
-    removeCmPackage(p.id);
-    void reload();
-  };
+  const doDelete = (p: CmPackage) => setAsk({
+    text: `Slet pakke ${p.title} med ${p.items.length} fund? Det kan ikke fortrydes.`,
+    run: async () => {
+      if (p.cloud) await deleteCloudPackage(p.id);
+      await deleteShots(p.items.map(i => i.id));
+      removeCmPackage(p.id);
+      void reload();
+    },
+  });
 
   return (
     <div {...layer} className="cm-root cm-backdrop" style={{ top: 0, height: '100%' }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -454,10 +462,10 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         {p.status === 'open' && <button type="button" disabled={busy} className="cm-btn cm-chipbtn cm-primary" data-testid="cm-send" onClick={() => void doSend(p)}><Svg d={I.send} size={14} /> Send til Claude Code</button>}
                         <button type="button" className="cm-btn cm-chipbtn cm-ghost" data-testid="cm-copy" onClick={() => void doCopy(p)}><Svg d={I.copy} size={14} /> Kopiér som tekst</button>
                         {p.status === 'open' && <button type="button" className="cm-btn cm-chipbtn cm-ghost" data-testid="cm-finish" onClick={() => finishPackage(p.id)}>Afslut pakke</button>}
-                        <button type="button" className="cm-btn cm-chipbtn cm-danger" data-testid="cm-delete" onClick={() => void doDelete(p)}><Svg d={I.trash} size={14} /> Slet</button>
+                        <button type="button" className="cm-btn cm-chipbtn cm-danger" data-testid="cm-delete" onClick={() => doDelete(p)}><Svg d={I.trash} size={14} /> Slet</button>
                       </div>
                     )}
-                    {p.items.length === 0 && p.status !== 'open' && <div className="cm-actions"><button type="button" className="cm-btn cm-chipbtn cm-danger" onClick={() => void doDelete(p)}>Slet tom pakke</button></div>}
+                    {p.items.length === 0 && p.status !== 'open' && <div className="cm-actions"><button type="button" className="cm-btn cm-chipbtn cm-danger" onClick={() => doDelete(p)}>Slet tom pakke</button></div>}
                     {p.status !== 'open' && phase !== 'done' && <CopyLine title={p.title} />}
                     {sectionsOf(p).map(sec => (
                       <div key={sec.key} className="cm-sec">
@@ -501,7 +509,7 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   <div className="cm-actions" data-testid="cm-cloud-actions">
                     {c.status === 'open' && c.items.length > 0 && <button type="button" className="cm-btn cm-chipbtn cm-primary" data-testid="cm-cloud-send" onClick={async () => { await sendCloud(c.id); void reload(); }}><Svg d={I.send} size={14} /> Send til Claude Code</button>}
                     {c.items.length > 0 && <button type="button" className="cm-btn cm-chipbtn cm-ghost" data-testid="cm-cloud-copy" onClick={() => void doCopy(asLocal)}><Svg d={I.copy} size={14} /> Kopiér som tekst</button>}
-                    {(c.items.length === 0 || phase === 'done') && <button type="button" className="cm-btn cm-chipbtn cm-danger" data-testid="cm-cloud-delete" onClick={async () => { if (window.confirm(`Slet pakke ${c.title}?`)) { await deleteCloudPackage(c.id); void reload(); } }}>Slet</button>}
+                    {(c.items.length === 0 || phase === 'done') && <button type="button" className="cm-btn cm-chipbtn cm-danger" data-testid="cm-cloud-delete" onClick={() => setAsk({ text: `Slet pakke ${c.title}?`, run: async () => { await deleteCloudPackage(c.id); void reload(); } })}>Slet</button>}
                   </div>
                   {c.status !== 'open' && phase !== 'done' && <CopyLine title={c.title} />}
                   {sectionsOf(asLocal).map(sec => (
@@ -526,6 +534,17 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
       </div>
       {zoom && <div className="cm-zoom" onClick={() => setZoom(null)}><img src={zoom} alt="Skærmbillede" /></div>}
+      {ask && (
+        <div className="cm-confirm" onClick={e => { if (e.target === e.currentTarget) setAsk(null); }}>
+          <div className="cm-confirm-box" role="alertdialog" aria-modal="true" data-testid="cm-confirm">
+            <p>{ask.text}</p>
+            <div className="cm-actions">
+              <button type="button" className="cm-btn cm-chipbtn cm-ghost" data-testid="cm-confirm-no" onClick={() => setAsk(null)}>Annullér</button>
+              <button type="button" className="cm-btn cm-chipbtn cm-danger" data-testid="cm-confirm-yes" autoFocus onClick={() => { const run = ask.run; setAsk(null); void run(); }}>Slet</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

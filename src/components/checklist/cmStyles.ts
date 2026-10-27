@@ -85,6 +85,10 @@ export const CM_CSS = `
 .cm-note { font-size: 12px; color: var(--cm-dim); }
 .cm-zoom { position: fixed; inset: 0; z-index: 2147483650; background: rgba(0,0,0,.9); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
 .cm-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+.cm-confirm { position: fixed; inset: 0; z-index: 2147483650; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cm-confirm-box { width: min(380px, 100%); background: var(--cm-bg); color: var(--cm-text); border: 1px solid var(--cm-line); border-radius: 18px; padding: 18px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.cm-confirm-box p { margin: 0 0 14px; font-size: 15px; line-height: 1.45; }
+.cm-confirm-box .cm-actions { justify-content: flex-end; }
 .cm-notice { position: fixed; z-index: 2147483605; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 12px); background: rgba(13,13,18,.96); color: #fff; border: 1px solid rgba(34,197,94,.45); border-radius: 16px; padding: 8px 8px 8px 14px; display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 800; box-shadow: 0 12px 40px rgba(0,0,0,.4); max-width: calc(100% - 24px); }
 .cm-toggle { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; border-radius: 14px; padding: 8px 12px; background: rgba(217,70,239,.12); border: 1px solid rgba(217,70,239,.4); color: inherit; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
 .cm-toggle .cm-switch { width: 40px; height: 24px; }
