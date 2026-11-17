@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 import Intro from "./components/Intro";
 import ErrorBoundary from "./components/ErrorBoundary";
+import RequireSso from "./components/RequireSso";
 
 // Route-level code-splitting: hver side hentes først når den bruges, så
 // hoved-bundlen (og de tunge PDF-libs) ikke bremser første load.
@@ -38,12 +39,24 @@ export default function App() {
         <ErrorBoundary>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/aktivitet/:slug" element={<ActivityGear />} />
-              <Route path="/vedligeholdelse" element={<Maintenance />} />
-              <Route path="/find" element={<FindEquipment />} />
+              {/* TeamBox-hubben bruges af instruktører på tablets uden login: indholdet er
+                  statisk, og fejlrapporter går via RPC'en gear_submit_teambox_report. */}
               <Route path="/teambox" element={<TeamBox />} />
-              <Route path="*" element={<Landing />} />
+              {/* Resten læser/skriver låste tabeller (gear*, geartypes, tablets, activities,
+                  employees …) og kræver platform-login efter RLS-lockdown. */}
+              <Route
+                element={
+                  <RequireSso appName="GEAR">
+                    <Outlet />
+                  </RequireSso>
+                }
+              >
+                <Route path="/" element={<Landing />} />
+                <Route path="/aktivitet/:slug" element={<ActivityGear />} />
+                <Route path="/vedligeholdelse" element={<Maintenance />} />
+                <Route path="/find" element={<FindEquipment />} />
+                <Route path="*" element={<Landing />} />
+              </Route>
             </Routes>
           </Suspense>
         </ErrorBoundary>

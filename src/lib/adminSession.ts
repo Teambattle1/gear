@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { notifySsoChange } from "@/lib/sso";
 
 /**
  * Admin-login i GEAR (kode tjekkes på serveren via den fælles edge function
  * `ef-verify-code` på Supabase MAIN — koden står ALDRIG i klienten).
  * Sessionen gater kun Checklist mode; resten af GEAR er åben som før.
+ * `token` er platformens SSO-token (`sessionToken` fra ef-verify-code); det
+ * gemmes så databasen genkender admin efter RLS-lockdown (se ./sso.ts).
  */
 export const ADMIN_SESSION_KEY = "gear_admin_session";
 export const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 timer
@@ -29,10 +32,12 @@ export function readAdminSession(): AdminSession | null {
 
 function notify() {
   window.dispatchEvent(new Event(CHANGE_EVENT));
+  notifySsoChange();
 }
 
-export function saveAdminSession(name: string): void {
-  const s: AdminSession = { name: name || "Admin", expiresAt: Date.now() + ADMIN_SESSION_TTL_MS };
+export function saveAdminSession(name: string, token?: string): void {
+  const s: AdminSession & { token?: string } = { name: name || "Admin", expiresAt: Date.now() + ADMIN_SESSION_TTL_MS };
+  if (token) s.token = token;
   try {
     localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(s));
   } catch {
@@ -71,7 +76,7 @@ export function useAdminSession(): AdminSession | null {
 }
 
 export type VerifyResult =
-  | { ok: true; name: string }
+  | { ok: true; name: string; token?: string }
   | { ok: false; reason: "invalid" | "not_admin" | "rate_limited" | "network" };
 
 /**
@@ -86,9 +91,10 @@ export async function verifyAdminCode(code: string): Promise<VerifyResult> {
       const status = (error as { context?: { status?: number } }).context?.status;
       return { ok: false, reason: status === 429 ? "rate_limited" : status === 400 ? "invalid" : "network" };
     }
-    if (data?.type === "admin") return { ok: true, name: data.adminName || "Admin" };
+    const token = typeof data?.sessionToken === "string" ? data.sessionToken : undefined;
+    if (data?.type === "admin") return { ok: true, name: data.adminName || "Admin", token };
     if (data?.type === "user_sites") {
-      if (data.role === "admin" || data.role === "ef_admin") return { ok: true, name: data.name || "Admin" };
+      if (data.role === "admin" || data.role === "ef_admin") return { ok: true, name: data.name || "Admin", token };
       return { ok: false, reason: "not_admin" };
     }
     if (data?.type) return { ok: false, reason: "not_admin" };

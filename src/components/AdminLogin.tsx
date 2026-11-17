@@ -120,7 +120,7 @@ function AdminLoginDialog({ onClose }: { onClose: () => void }) {
     setLoading(false);
     if (res.ok) {
       failedAttempts = 0;
-      saveAdminSession(res.name);
+      saveAdminSession(res.name, res.token);
       onClose();
       return;
     }

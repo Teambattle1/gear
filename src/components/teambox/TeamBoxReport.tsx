@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Send, AlertTriangle, CheckCircle2, Loader2, AlertOctagon, ChevronLeft } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { submitTeamboxReport } from "@/lib/teamboxReports";
 import { FEJL_GEAR_OPTIONS } from "@/lib/teamboxContent";
 
 interface TeamBoxReportProps {
@@ -24,18 +24,14 @@ const TeamBoxReport: React.FC<TeamBoxReportProps> = ({ onBack }) => {
     setIsSending(true);
     setError(null);
     try {
-      const { error: dbError } = await supabase.from("fejlsogning_reports").insert({
-        activity: "teambox",
-        activity_name: "TeamBox",
+      const { error: dbError } = await submitTeamboxReport({
+        activityName: "TeamBox",
         date,
         gear,
         description: `${haster ? "[HASTER] " : ""}${description}`,
-        reported_by: "gear",
-        reported_by_name: "GEAR",
-        created_at: new Date().toISOString(),
       });
       if (dbError) {
-        setError(dbError.message || "Fejl ved indsendelse");
+        setError(dbError);
         setIsSending(false);
         return;
       }

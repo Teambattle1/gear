@@ -108,6 +108,12 @@ Activity slug resolution is twofold: `listActivities()` slugifies `activity.id` 
 
 **Path alias.** `@/*` → `src/*` (configured in both `vite.config.ts` and `tsconfig.app.json`). Imports use `@/lib/...`, `@/components/...`, `@/pages/...`.
 
+## Platform-SSO og RLS-lockdown (branch `security-sso`, 2026-11-17)
+
+- Alle REST-kald fra `src/lib/supabase.ts` bærer `x-eventday-sso` (fetch-wrapper i `src/lib/sso.ts`). Token: admin-sessionens `token` (sessionToken fra `ef-verify-code`) → eget staff-login `gear_sso_session` → cookien `eventday_sso`.
+- Alle ruter undtagen `/teambox` ligger bag `RequireSso` (`src/components/RequireSso.tsx`): uden token vises «Log ind på app.eventday.dk» + kode-login. Det erstatter «GEAR er ellers åben uden login».
+- `/teambox` er stadig åben; fejlrapporter går via `lib/teamboxReports.ts` → RPC `gear_submit_teambox_report` (`supabase/migrations/20261117130000_gear_rpcs.sql`, ikke anvendt endnu; falder tilbage til direkte insert).
+
 ## Admin-login (kode, tjekket på serveren)
 
 GEAR er ellers åben uden login. Admin-loginet gater KUN Checklist mode.

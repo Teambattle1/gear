@@ -11,7 +11,7 @@ import {
   MessageSquare,
   X,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { submitTeamboxReport } from "@/lib/teamboxReports";
 import { CHECKLIST_SECTIONS as SECTIONS } from "@/lib/teamboxContent";
 
 interface SectionNote {
@@ -148,15 +148,11 @@ const TeamBoxChecklist: React.FC<TeamBoxChecklistProps> = ({ onBack }) => {
         })
         .join("\n\n");
 
-      const { error: dbError } = await supabase.from("fejlsogning_reports").insert({
-        activity: "teambox",
-        activity_name: "TeamBox - Nulstilling",
+      const { error: dbError } = await submitTeamboxReport({
+        activityName: "TeamBox - Nulstilling",
         date: new Date().toISOString().split("T")[0],
         gear: "EscapeBOX",
         description: issuesReport || "Ingen fejl rapporteret - alt OK",
-        reported_by: "gear",
-        reported_by_name: "GEAR",
-        created_at: new Date().toISOString(),
       });
       if (dbError) console.error("DB Error:", dbError);
 

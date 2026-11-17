@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { fetchWithSso } from "./sso";
 
 const DEFAULT_URL = "https://ilbjytyukicbssqftmma.supabase.co";
 const DEFAULT_ANON =
@@ -10,7 +11,8 @@ const anon = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || DEFAULT_ANON;
 let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
-  if (!client) client = createClient(url, anon);
+  // RLS-lockdown: alle REST-kald bærer platformens SSO-token (se ./sso.ts)
+  if (!client) client = createClient(url, anon, { global: { fetch: fetchWithSso } });
   return client;
 }
 
