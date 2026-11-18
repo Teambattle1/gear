@@ -16,11 +16,44 @@ import {
   CM_LAYER_ATTR, drawMarker, visibleArea, getCmConfig, getCmState, openPackageOf, patchCmItem, patchCmPackage, titleAvoiding, uid, updateCm,
   type CmItem, type CmItemStatus, type CmPackage, type CmRect,
 } from './cmCore';
+import { cmMainClient, getCmSsoToken, saveCmSsoToken } from './cmMainClient';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Sb = any;
 let sb: Sb = null;
 export const setCmSupabase = (client: Sb): void => { sb = client; };
+
+// cm_* er kun for medarbejdere (RLS: is_staff()). Kender kittet et staff-token
+// (appens eget, kittets login eller .eventday.dk-cookien), går kaldene via
+// kittets MAIN-klient, der sender det som x-eventday-sso. Ellers appens egen
+// klient — den bærer selv appens SSO-header / CRM-JWT / CREW-login.
+const db = (): Sb => (getCmSsoToken() ? cmMainClient : sb);
+
+/** Må denne browser skrive/læse fund i skyen? `null` = ved ikke (intet net). */
+export const cloudAccess = async (): Promise<boolean | null> => {
+  if (!sb) return null;
+  try {
+    const { data, error } = await db().rpc('cm_access');
+    return error ? null : data === true;
+  } catch { return null; }
+};
+
+export type CmLoginResult = 'ok' | 'invalid' | 'not_staff' | 'rate_limited' | 'network';
+
+/** Medarbejder-kode (samme som app.eventday.dk) → staff-token til kittet. Koden tjekkes på serveren. */
+export const cloudLogin = async (code: string): Promise<CmLoginResult> => {
+  try {
+    const { data, error } = await cmMainClient.functions.invoke('ef-verify-code', { body: { code: code.trim() } });
+    if (error) {
+      const status = (error as { context?: { status?: number } }).context?.status;
+      return status === 429 ? 'rate_limited' : status === 400 || status === 401 || status === 404 ? 'invalid' : 'network';
+    }
+    const token = typeof data?.sessionToken === 'string' ? data.sessionToken : '';
+    if (!token) return data?.type ? 'not_staff' : 'invalid';
+    saveCmSsoToken(token);
+    return (await cloudAccess()) === false ? 'not_staff' : 'ok';
+  } catch { return 'network'; }
+};
 
 // ── Skærmbillede ──────────────────────────────────────────────────────
 
@@ -153,7 +186,7 @@ const dayOf = (title: string) => title.split(' · ')[0];
 
 /** Titler, skyen allerede bruger på pakkens dag (navnet er unikt pr. app pr. dag på tværs af enheder). */
 const cloudTitlesForDay = async (day: string): Promise<string[]> => {
-  const { data, error } = await sb.from('cm_packages').select('title').eq('app', getCmConfig().app).like('title', `${day} ·%`);
+  const { data, error } = await db().from('cm_packages').select('title').eq('app', getCmConfig().app).like('title', `${day} ·%`);
   if (error) throw error;
   return (data || []).map((r: { title: string }) => r.title);
 };
@@ -166,7 +199,7 @@ const insertPackage = async (pkg: CmPackage): Promise<string | null> => {
     if (taken.includes(title)) title = titleAvoiding([...taken, ...getCmState().packages.filter(p => p.id !== pkg.id).map(p => p.title)], pkg.createdAt);
   } catch { /* en læsefejl blokerer aldrig skrivningen */ }
   for (let attempt = 0; attempt < 4; attempt++) {
-    const { error } = await sb.from('cm_packages').insert({
+    const { error } = await db().from('cm_packages').insert({
       id: pkg.id, app, title, status: pkg.status === 'open' ? 'open' : 'sent', created_at: new Date(pkg.createdAt).toISOString(),
       device: deviceName(), app_version: version || null,
     });
@@ -210,7 +243,7 @@ export const syncCm = async (): Promise<void> => {
         patchCmPackage(pkg.id, { cloud: true, title });
       } else if (pkg.status === 'open') {
         // Står pakken låst i skyen (sendt fra en anden enhed), flyttes nye fund til en NY pakke.
-        const { data } = await sb.from('cm_packages').select('status').eq('id', pkg.id).maybeSingle();
+        const { data } = await db().from('cm_packages').select('status').eq('id', pkg.id).maybeSingle();
         if (!data) { patchCmPackage(pkg.id, { cloud: false }); again = true; continue; }
         if (data.status !== 'open') {
           const queued = pkg.items.filter(i => !i.synced);
@@ -224,11 +257,11 @@ export const syncCm = async (): Promise<void> => {
       if (!pkg) continue;
       for (const it of pkg.items.filter(i => !i.synced)) {
         const shot = it.hasShot ? await getShot(it.id) : null;
-        const { error } = await sb.from('cm_items').insert(itemRow(pkg, it, shot));
+        const { error } = await db().from('cm_items').insert(itemRow(pkg, it, shot));
         if (error && error.code !== '23505') throw error;
         patchCmItem(it.id, { synced: true });
       }
-      if (pkg.status !== 'open') await sb.from('cm_packages').update({ status: 'sent', sent_at: new Date(pkg.sentAt || Date.now()).toISOString(), updated_at: new Date().toISOString() }).eq('id', pkg.id);
+      if (pkg.status !== 'open') await db().from('cm_packages').update({ status: 'sent', sent_at: new Date(pkg.sentAt || Date.now()).toISOString(), updated_at: new Date().toISOString() }).eq('id', pkg.id);
     }
   } catch {
     /* intet net / tabellen mangler — fundene bliver i køen */
@@ -260,7 +293,7 @@ export const refreshStatuses = async (): Promise<void> => {
   const ids = getCmState().packages.filter(p => p.cloud).map(p => p.id);
   if (!ids.length) return;
   try {
-    const { data, error } = await sb.from('cm_items').select('id,status,fix_ref,fix_version,declined_reason').in('package_id', ids);
+    const { data, error } = await db().from('cm_items').select('id,status,fix_ref,fix_version,declined_reason').in('package_id', ids);
     if (error || !data) return;
     const by = new Map<string, { status: CmItemStatus; fix_ref: string | null; fix_version: string | null; declined_reason: string | null }>(data.map((r: { id: string }) => [r.id, r]));
     updateCm(s => ({
@@ -284,8 +317,8 @@ export const sendCloud = async (pkgId: string): Promise<boolean> => {
   if (!sb) return false;
   try {
     const now = new Date().toISOString();
-    const a = await sb.from('cm_packages').update({ status: 'sent', sent_at: now, updated_at: now }).eq('id', pkgId);
-    const b = await sb.from('cm_items').update({ status: 'sent', updated_at: now }).eq('package_id', pkgId).eq('status', 'open');
+    const a = await db().from('cm_packages').update({ status: 'sent', sent_at: now, updated_at: now }).eq('id', pkgId);
+    const b = await db().from('cm_items').update({ status: 'sent', updated_at: now }).eq('package_id', pkgId).eq('status', 'open');
     return !a.error && !b.error;
   } catch { return false; }
 };
@@ -293,39 +326,39 @@ export const sendCloud = async (pkgId: string): Promise<boolean> => {
 export const deleteCloudPackage = async (pkgId: string): Promise<boolean> => {
   if (!sb) return false;
   try {
-    const { error } = await sb.from('cm_packages').delete().eq('id', pkgId);
+    const { error } = await db().from('cm_packages').delete().eq('id', pkgId);
     return !error;
   } catch { return false; }
 };
 export const deleteCloudItem = async (id: string): Promise<boolean> => {
   if (!sb) return false;
-  try { const { error } = await sb.from('cm_items').delete().eq('id', id); return !error; } catch { return false; }
+  try { const { error } = await db().from('cm_items').delete().eq('id', id); return !error; } catch { return false; }
 };
 
 /** Pakker i skyen for denne app (også fra andre enheder/browsere), nyeste først. Uden billeder. */
 export const fetchCloudPackages = async (limit = 30): Promise<CloudPackage[] | null> => {
   if (!sb) return null;
   try {
-    const { data: pk, error } = await sb.from('cm_packages').select('id,title,status,created_at,sent_at,device,app_version')
+    const { data: pk, error } = await db().from('cm_packages').select('id,title,status,created_at,sent_at,device,app_version')
       .eq('app', getCmConfig().app).order('created_at', { ascending: false }).limit(limit);
     if (error) return null;
     const ids = (pk || []).map((p: { id: string }) => p.id);
     if (!ids.length) return [];
-    const { data: items } = await sb.from('cm_items').select(ITEM_COLS).in('package_id', ids).order('seq');
+    const { data: items } = await db().from('cm_items').select(ITEM_COLS).in('package_id', ids).order('seq');
     return (pk || []).map((p: Omit<CloudPackage, 'items'>) => ({ ...p, items: (items || []).filter((i: CloudItem) => i.package_id === p.id) }));
   } catch { return null; }
 };
 
 export const fetchThumb = async (itemId: string): Promise<string | null> => {
   if (!sb) return null;
-  try { const { data } = await sb.from('cm_items').select('thumb_b64').eq('id', itemId).maybeSingle(); return data?.thumb_b64 || null; } catch { return null; }
+  try { const { data } = await db().from('cm_items').select('thumb_b64').eq('id', itemId).maybeSingle(); return data?.thumb_b64 || null; } catch { return null; }
 };
 
 /** «n fund håndteret siden sidst» — fixed/declined skrevet af Claude efter `since`. */
 export const fetchHandledSince = async (since: string): Promise<number> => {
   if (!sb) return 0;
   try {
-    const { count } = await sb.from('cm_items').select('id', { count: 'exact', head: true })
+    const { count } = await db().from('cm_items').select('id', { count: 'exact', head: true })
       .eq('app', getCmConfig().app).in('status', ['fixed', 'declined']).gt('updated_at', since);
     return count || 0;
   } catch { return 0; }

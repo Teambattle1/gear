@@ -10,8 +10,10 @@ import {
 import {
   captureMarked, deleteCloudItem, deleteCloudPackage, deleteShots, fetchCloudPackages, fetchHandledSince, fetchThumb, getShot,
   pendingCount, putShot, refreshStatuses, scheduleSync, sendCloud, setCmSupabase, startSyncLoop, syncCm,
+  cloudAccess, cloudLogin, type CmLoginResult,
   type CloudPackage, type CmShot,
 } from './cmCloud';
+import { setCmSsoTokenGetter } from './cmMainClient';
 import { injectCmStyles } from './cmStyles';
 
 /**
@@ -42,6 +44,8 @@ export interface ChecklistModeProps {
   routeKey?: () => string;
   /** Ekstra kontekst pr. fund (fx indlogget bruger, valgt opgave). */
   getContext?: () => Record<string, unknown>;
+  /** Appens staff-token (x-eventday-sso), hvis den har et, som kittets egen klient ikke selv finder. */
+  ssoToken?: () => string | null | undefined;
 }
 
 
@@ -360,9 +364,51 @@ const CopyLine: React.FC<{ title: string }> = ({ title }) => {
 interface Row { kind: 'local'; pkg: CmPackage; createdAt: number; title: string }
 interface CRow { kind: 'cloud'; pkg: CloudPackage; createdAt: number; title: string }
 
+const LOGIN_TEXT: Record<Exclude<CmLoginResult, 'ok'>, string> = {
+  invalid: 'Forkert kode',
+  not_staff: 'Koden giver ikke adgang til skyen',
+  rate_limited: 'For mange forsøg — vent lidt',
+  network: 'Ingen forbindelse — prøv igen',
+};
+
+/**
+ * Skyen (cm_*) svarer kun medarbejdere. Har browseren intet staff-token (fx
+ * MEET's PIN-lås, eller apps uden for MAIN uden login på app.eventday.dk),
+ * bliver fundene på enheden, til en medarbejder-kode er tastet her. Kun inde
+ * i admin-panelet — appens almindelige brugere ser det aldrig.
+ */
+const CloudLogin: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const submit = async () => {
+    if (!code.trim() || busy) return;
+    setBusy(true);
+    setErr(null);
+    const r = await cloudLogin(code);
+    setBusy(false);
+    if (r === 'ok') { setCode(''); onDone(); } else setErr(LOGIN_TEXT[r]);
+  };
+  return (
+    <div className="cm-card" data-testid="cm-cloud-login" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontWeight: 900, fontSize: 14 }}>Fund gemmes kun på enheden</div>
+      <div className="cm-note">Skyen er kun for medarbejdere. Tast din medarbejder-kode (som på app.eventday.dk) for at sende fundene.</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          className="cm-code" type="password" inputMode="text" autoComplete="off" placeholder="Kode" value={code} data-testid="cm-cloud-code"
+          onChange={e => setCode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
+        />
+        <button type="button" className="cm-btn cm-chipbtn cm-primary" data-testid="cm-cloud-login-btn" disabled={busy || !code.trim()} onClick={() => void submit()}>{busy ? '…' : 'Log ind'}</button>
+      </div>
+      {err && <div className="cm-note" role="alert" style={{ color: '#fecaca', fontWeight: 800 }}>{err}</div>}
+    </div>
+  );
+};
+
 const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const state = useCm();
   const { version, appName } = getCmConfig();
+  const [access, setAccess] = useState<boolean | null>(null);
   const [cloud, setCloud] = useState<CloudPackage[] | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
   // Bekræft-boks i lagets eget design (browserens confirm() kan ikke screendumpes)
@@ -381,6 +427,8 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   useEffect(() => {
     let alive = true;
     void (async () => {
+      const a = await cloudAccess();
+      if (alive) setAccess(a);
       await syncCm();
       await refreshStatuses();
       const c = await fetchCloudPackages();
@@ -440,6 +488,7 @@ const Panel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <button type="button" role="switch" aria-checked={state.enabled} aria-label="Checklist mode" className="cm-btn cm-switch" data-testid="cm-switch" onClick={() => setCmEnabled(!state.enabled)} />
           </div>
+          {access === false && <CloudLogin onDone={() => { setAccess(true); void reload(); }} />}
           {pending > 0 && <div className="cm-note" data-testid="cm-pending">{pending} fund venter på skyen — de sendes, så snart der er forbindelse.</div>}
           {msg && <div className="cm-note" role="status" style={{ color: '#f5d0fe', fontWeight: 800 }}>{msg}</div>}
           {!rows.length && <div className="cm-empty">Ingen pakker endnu. Tænd laget og tryk på knappen for at tage det første fund.</div>}
@@ -576,9 +625,10 @@ const HandledNotice: React.FC<{ onOpen: () => void }> = ({ onOpen }) => {
 // ── Roden ─────────────────────────────────────────────────────────────
 const screenNow = (): CmScreen => resolveScreen(null, document);
 
-const ChecklistMode: React.FC<ChecklistModeProps> = ({ app, appName, version = '', isAdmin, supabase, screens = [], routeKey, getContext }) => {
+const ChecklistMode: React.FC<ChecklistModeProps> = ({ app, appName, version = '', isAdmin, supabase, screens = [], routeKey, getContext, ssoToken }) => {
   setCmConfig({ app, appName, version, screens, ...(routeKey ? { routeKey } : {}) });
   setCmSupabase(supabase);
+  setCmSsoTokenGetter(ssoToken);
   const state = useCm();
   const [aiming, setAiming] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);

@@ -83,6 +83,8 @@ export const CM_CSS = `
 .cm-copyline code { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 14px; color: #f5d0fe; }
 .cm-empty { text-align: center; color: var(--cm-dim); font-size: 13px; padding: 14px; }
 .cm-note { font-size: 12px; color: var(--cm-dim); }
+.cm-code { flex: 1; min-width: 0; border-radius: 12px; border: 1px solid var(--cm-line); background: var(--cm-card); color: #fff; font-size: 16px; padding: 10px 12px; outline: none; }
+.cm-code:focus { border-color: var(--cm-accent); box-shadow: 0 0 0 3px rgba(217,70,239,.25); }
 .cm-zoom { position: fixed; inset: 0; z-index: 2147483650; background: rgba(0,0,0,.9); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
 .cm-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; }
 .cm-confirm { position: fixed; inset: 0; z-index: 2147483650; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
