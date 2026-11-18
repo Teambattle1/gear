@@ -78,11 +78,12 @@ export function getSsoToken(): string {
   return ''
 }
 
-/** fetch til Supabase-klienten: tilføjer `x-eventday-sso` på REST-kald (/rest/v1/).
- *  Kun REST — edge functions har egne CORS-regler for headers. */
+/** fetch til Supabase-klienten: tilføjer `x-eventday-sso` på REST- og storage-kald
+ *  (/rest/v1/, /storage/v1/) — storage-policies (sletning/overskrivning) kræver staff.
+ *  Ikke edge functions: de har egne CORS-regler for headers. */
 export function fetchWithSso(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-  if (!url.includes('/rest/v1/')) return fetch(input, init)
+  if (!url.includes('/rest/v1/') && !url.includes('/storage/v1/')) return fetch(input, init)
   const token = getSsoToken()
   if (!token) return fetch(input, init)
   const headers = new Headers(init.headers || {})
